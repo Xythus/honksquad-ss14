@@ -39,6 +39,9 @@
         layer:
         - MachineLayer
   - type: EntityStorage
+    # HONK START - Crates not airtight by default, welding makes them airtight
+    airtight: false
+    # HONK END
   - type: PlaceableSurface
     isPlaceable: false # defaults to closed.
   - type: Damageable

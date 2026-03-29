@@ -6,6 +6,9 @@ using Content.Shared.Cuffs.Components;
 using Content.Shared.Database;
 using Content.Shared.DoAfter;
 using Content.Shared.DragDrop;
+//HONK START - Escalated grab: skip strip during grab
+using Content.Shared.RussStation.EscalatedGrab.Components;
+//HONK END
 using Content.Shared.Hands.Components;
 using Content.Shared.Hands.EntitySystems;
 using Content.Shared.IdentityManagement;
@@ -53,7 +56,6 @@ public abstract class SharedStrippableSystem : EntitySystem
         SubscribeLocalEvent<StrippingComponent, CanDropTargetEvent>(OnCanDropOn);
         SubscribeLocalEvent<StrippableComponent, CanDropDraggedEvent>(OnCanDrop);
         SubscribeLocalEvent<StrippableComponent, DragDropDraggedEvent>(OnDragDrop);
-        SubscribeLocalEvent<StrippableComponent, ActivateInWorldEvent>(OnActivateInWorld);
     }
 
     private void AddStripVerb(EntityUid uid, StrippableComponent component, GetVerbsEvent<Verb> args)
@@ -623,15 +625,6 @@ public abstract class SharedStrippableSystem : EntitySystem
         }
     }
 
-    private void OnActivateInWorld(EntityUid uid, StrippableComponent component, ActivateInWorldEvent args)
-    {
-        if (args.Handled || !args.Complex || args.Target == args.User)
-            return;
-
-        if (TryOpenStrippingUi(args.User, (uid, component)))
-            args.Handled = true;
-    }
-
     /// <summary>
     /// Modify the strip time via events. Raised directed at the item being stripped, the player stripping someone and the player being stripped.
     /// </summary>
@@ -652,6 +645,11 @@ public abstract class SharedStrippableSystem : EntitySystem
         // If the user drags a strippable thing onto themselves.
         if (args.Handled || args.Target != args.User)
             return;
+
+        //HONK START - Skip strip if escalated grab active
+        if (TryComp<GrabStateComponent>(args.User, out var grab) && grab.Target == uid)
+            return;
+        //HONK END
 
         if (TryOpenStrippingUi(args.User, (uid, component)))
             args.Handled = true;
