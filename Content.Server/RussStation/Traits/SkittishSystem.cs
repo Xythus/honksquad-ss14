@@ -1,4 +1,5 @@
 using Content.Shared.Lock;
+using Content.Shared.Mobs.Systems;
 using Content.Shared.Movement.Components;
 using Content.Shared.Popups;
 using Content.Shared.RussStation.Traits;
@@ -7,6 +8,7 @@ using Content.Shared.Storage.EntitySystems;
 using Robust.Shared.Audio.Systems;
 using Robust.Shared.Containers;
 using Robust.Shared.Physics.Events;
+using Robust.Shared.Player;
 using Robust.Shared.Timing;
 
 namespace Content.Server.RussStation.Traits;
@@ -15,6 +17,7 @@ public sealed class SkittishSystem : EntitySystem
 {
     [Dependency] private readonly SharedEntityStorageSystem _entityStorage = default!;
     [Dependency] private readonly LockSystem _lock = default!;
+    [Dependency] private readonly MobStateSystem _mobState = default!;
     [Dependency] private readonly SharedAudioSystem _audio = default!;
     [Dependency] private readonly SharedContainerSystem _container = default!;
     [Dependency] private readonly SharedPopupSystem _popup = default!;
@@ -33,6 +36,10 @@ public sealed class SkittishSystem : EntitySystem
 
         // Don't trigger if already inside a container.
         if (_container.IsEntityInContainer(uid))
+            return;
+
+        // Don't trigger if the player is dead, critical, or otherwise incapacitated.
+        if (!_mobState.IsAlive(uid))
             return;
 
         // Only trigger when the player is sprinting, not walking.
