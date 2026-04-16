@@ -6,6 +6,12 @@
   description: trait-blindness-desc
   traitGear: WhiteCane
   category: Disabilities
+  # HONK START - fork tag-exclusion system: ScarredEye shares the sight domain
+  tags:
+    - sight
+  excludedTags:
+    - sight
+  # HONK END
   whitelist:
     components:
       - Blindable
@@ -59,6 +65,12 @@
   name: trait-muted-name
   description: trait-muted-desc
   category: Disabilities
+  # HONK START - fork tag-exclusion system: blocks BoomingVoice + other speech quirks
+  tags:
+    - speech
+  excludedTags:
+    - speech
+  # HONK END
   blacklist:
     components:
       - BorgChassis
@@ -83,6 +95,12 @@
   name: trait-painnumbness-name
   description: trait-painnumbness-desc
   category: Disabilities
+  # HONK START - fork tag-exclusion system: SelfAware is the functional opposite
+  tags:
+    - awareness
+  excludedTags:
+    - awareness
+  # HONK END
   specials:
   - !type:ApplyStatusEffectSpecial
     statusEffects:
@@ -104,5 +122,11 @@
   description: trait-impaired-mobility-desc
   traitGear: OffsetCane
   category: Disabilities
+  # HONK START - fork tag-exclusion system: blocks Skittish's sprint speed-up
+  tags:
+    - mobility
+  excludedTags:
+    - sprint
+  # HONK END
   components:
     - type: ImpairedMobility
