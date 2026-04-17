@@ -2,6 +2,20 @@
 
 This document describes the branching strategy for the HonkSquad SS14 fork, designed to cleanly manage upstream (Wizden) syncs and fork-specific development.
 
+## The upstream rule
+
+**`wizden/stable` is the only upstream source for this fork.** Never merge `wizden/master`, `upstream/master`, or any non-stable upstream branch into `staging`, `release`, or any branch destined for `release`. The `release-base-integrity` CI job (`.github/workflows/check-release-base.yml`) enforces this, blocking any push or PR whose merge-base with `origin/upstream/stable` is not itself reachable from `wizden/stable`.
+
+Every fork-authored commit must use the `honksquad:` subject prefix. The `commit-prefix` CI job enforces this automatically: commits reachable from `origin/upstream/stable` are exempt (upstream), everything else must carry the prefix.
+
+If release drifts onto a non-stable base, the recovery procedure is a full resync: reclassify every commit as fork-preserve or upstream-drop, replay the fork commits onto a clean `wizden/stable` base, force-push release, and rebase all open PRs with `git rebase --onto origin/release <pre-resync-tag>`.
+
+## Cross-repository PRs
+
+External contributors submit PRs from their own forks. When rebasing these PRs (e.g., during an upstream sync), push to the **contributor's fork**, not `origin`. Pushing to `origin` creates a dangling mirror branch that does not update the PR.
+
+Use `gh pr checkout <N>` to fetch the contributor's branch, rebase, then force-push back to their remote. You will need to add their fork as a named remote and fetch before `--force-with-lease` works (the `gh`-configured URL is not a tracked remote).
+
 ## Branch Overview
 
 ```
@@ -128,7 +142,7 @@ After the fix PR merges, the parent feature branch picks up the changes. Repeat 
 ### Handling Upstream Conflicts
 
 - **Namespace fork code.** Keep fork-specific files in subdirectories (e.g., `RussStation/`, `HonkSquad/`) and prefix component names to minimize collisions.
-- **Mark fork changes.** Use `// honksquad:` comments near inline changes to upstream files so they're easy to find during conflict resolution.
+- **Mark fork changes.** Use `//HONK START` / `//HONK END` block markers around inline changes to upstream files. Inline `// honksquad:` tails are not accepted by the HONK audit; see `CONTRIBUTING.md`.
 - **Keep upstream files clean.** Prefer extending via new components/systems rather than editing existing ones.
 - **Sync regularly.** Small, frequent syncs are easier than large, infrequent ones.
 
