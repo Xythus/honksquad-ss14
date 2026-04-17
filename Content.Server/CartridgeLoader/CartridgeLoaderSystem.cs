@@ -378,11 +378,18 @@ public sealed class CartridgeLoaderSystem : SharedCartridgeLoaderSystem
     /// </summary>
     private void OnMapInit(EntityUid uid, CartridgeLoaderComponent component, MapInitEvent args)
     {
+        //HONK START - extension seam: contributors raise their cartridges into a single
+        //inline set instead of running after MapInit and deduping against installed state.
+        var toInstall = new HashSet<string>(component.PreinstalledPrograms);
+        var ev = new CartridgeLoaderInitialProgramsEvent(uid, toInstall);
+        RaiseLocalEvent(uid, ref ev, broadcast: true);
+
         // TODO remove this and use container fill.
-        foreach (var prototype in component.PreinstalledPrograms)
+        foreach (var prototype in toInstall)
         {
             InstallProgram(uid, prototype, deinstallable: false);
         }
+        //HONK END
     }
 
     private void OnUsed(EntityUid uid, CartridgeLoaderComponent component, AfterInteractEvent args)
@@ -519,3 +526,14 @@ public sealed class CartridgeAfterInteractEvent : EntityEventArgs
 /// </summary>
 [ByRefEvent]
 public record struct ProgramInstallationAttempt(EntityUid LoaderUid, string Prototype, bool Cancelled = false);
+
+//HONK START - extension seam for fork-side initial-cartridge contributors.
+/// <summary>
+/// Raised on a cartridge loader during MapInit so contributors can add prototype IDs
+/// to the initial install set. The set is a HashSet, so duplicates are silently merged.
+/// Subscribers must mutate <see cref="Programs"/> in place; the loader installs the
+/// merged set inline, with no second pass.
+/// </summary>
+[ByRefEvent]
+public record struct CartridgeLoaderInitialProgramsEvent(EntityUid Loader, HashSet<string> Programs);
+//HONK END
