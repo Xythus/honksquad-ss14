@@ -1,0 +1,6 @@
+- type: loadoutGroup
+  id: BotanistShoes
+  name: loadout-group-botanist-shoes
+  loadouts:
+  - BrownShoes
+  - BotanistShoesRustic

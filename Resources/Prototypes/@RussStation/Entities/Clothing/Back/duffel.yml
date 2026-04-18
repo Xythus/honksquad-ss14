@@ -1,0 +1,8 @@
+- type: entity
+  parent: ClothingBackpackDuffel
+  id: ClothingBackpackDuffelHydroponicsRustic
+  name: rustic hydroponics duffel bag
+  description: A large duffel bag for holding extra gardening tools.
+  components:
+    - type: Sprite
+      sprite: '@RussStation/Clothing/Back/Duffels/rustic_botanist.rsi'

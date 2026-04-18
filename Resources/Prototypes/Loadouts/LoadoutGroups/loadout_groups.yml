@@ -474,6 +474,10 @@
   loadouts:
   - BotanistHead
   - BotanistBandana
+# HONK START
+  - BotanistStrawhat
+  - BotanistStrawhatMessy
+# HONK END
 
 - type: loadoutGroup
   id: BotanistJumpsuit
@@ -482,6 +486,10 @@
   - BotanistJumpsuit
   - BotanistJumpskirt
   - BotanistOveralls
+# HONK START
+  - BotanistJumpsuitRustic
+  - BotanistJumpskirtRustic
+# HONK END
 
 - type: loadoutGroup
   id: BotanistBackpack
@@ -490,6 +498,11 @@
   - BotanistBackpack
   - BotanistSatchel
   - BotanistDuffel
+# HONK START
+  - BotanistBackpackRustic
+  - BotanistSatchelRustic
+  - BotanistDuffelRustic
+# HONK END
 
 - type: loadoutGroup
   id: BotanistOuterClothing
