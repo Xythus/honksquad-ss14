@@ -1,4 +1,3 @@
-using Content.Shared.RussStation.Surgery.Systems; //HONK
 using Robust.Shared.GameStates;
 using Robust.Shared.Prototypes;
 
@@ -9,9 +8,9 @@ namespace Content.Shared.Body;
 /// </summary>
 /// <seealso cref="BodySystem" />
 [RegisterComponent, NetworkedComponent, AutoGenerateComponentState]
-//HONK START - Surgery system needs to read organ Category
-[Access(typeof(BodySystem), typeof(SharedSurgerySystem))]
-//HONK END
+// HONK START - surgery system writes organ state
+[Access(typeof(BodySystem), Other = AccessPermissions.ReadWrite)]
+// HONK END
 public sealed partial class OrganComponent : Component
 {
     /// <summary>
