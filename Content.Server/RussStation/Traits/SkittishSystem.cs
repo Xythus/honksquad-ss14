@@ -2,6 +2,7 @@ using Content.Shared.Lock;
 using Content.Shared.Movement.Components;
 using Content.Shared.Popups;
 using Content.Shared.RussStation.Traits;
+using Content.Shared.Standing;
 using Content.Shared.Storage.Components;
 using Content.Shared.Storage.EntitySystems;
 using Robust.Shared.Audio.Systems;
@@ -18,6 +19,7 @@ public sealed class SkittishSystem : EntitySystem
     [Dependency] private readonly SharedAudioSystem _audio = default!;
     [Dependency] private readonly SharedContainerSystem _container = default!;
     [Dependency] private readonly SharedPopupSystem _popup = default!;
+    [Dependency] private readonly StandingStateSystem _standing = default!;
     [Dependency] private readonly IGameTiming _timing = default!;
 
     public override void Initialize()
@@ -33,6 +35,10 @@ public sealed class SkittishSystem : EntitySystem
 
         // Don't trigger if already inside a container.
         if (_container.IsEntityInContainer(uid))
+            return;
+
+        // Don't trigger if the player isn't standing upright.
+        if (_standing.IsDown(uid))
             return;
 
         // Only trigger when the player is sprinting, not walking.
