@@ -4,9 +4,9 @@
   effects:
   - !type:JobRequirementLoadoutEffect
     requirement:
-      !type:DepartmentTimeRequirement
-      department: Hydroponics
-      time: 15h
+      !type:RoleTimeRequirement
+      role: JobBotanist
+      time: 54000 # 15 hrs
 
 # Jumpsuit
 - type: loadout
