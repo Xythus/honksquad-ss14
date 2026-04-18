@@ -44,6 +44,9 @@ Many stations are stocked with kits in storage, and all medics have some equipme
 <GuideEntityEmbed Entity="EmergencyMedipen"/>
 <GuideEntityEmbed Entity="Bloodpack"/>
 <GuideEntityEmbed Entity="Gauze"/>
+<!-- HONK START - Manual resuscitator icon -->
+<GuideEntityEmbed Entity="ManualResuscitator"/>
+<!-- HONK END -->
 </Box>
 
 ## Basic Treatment and Triage
