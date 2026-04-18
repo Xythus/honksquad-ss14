@@ -163,7 +163,9 @@
   - BotanistJumpsuit
   - BotanistBackpack
   - BotanistOuterClothing
-  - BotanistShoes # HONK
+# HONK START
+  - BotanistShoes
+# HONK END
   - Glasses
   - Survival
   - Trinkets
