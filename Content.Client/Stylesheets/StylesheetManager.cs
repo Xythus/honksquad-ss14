@@ -1,7 +1,9 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+//HONK START
 using Content.Client.Stylesheets.Fonts;
+//HONK END
 using Content.Client.Stylesheets.Stylesheets;
 using Robust.Client.ResourceManagement;
 using Robust.Client.UserInterface;
@@ -52,19 +54,9 @@ namespace Content.Client.Stylesheets
             IoCManager.InjectDependencies(FontManager);
             FontManager.Initialize();
             FontManager.FontsChanged += RebuildStylesheets;
+
+            BuildStylesheets();
             // HONK END
-
-            // add all sheetlets to the hashset
-            var tys = _reflection.FindTypesWithAttribute<CommonSheetletAttribute>();
-            UnusedSheetlets = [..tys];
-
-            Stylesheets = new Dictionary<string, Stylesheet>();
-            SheetNanotrasen = Init(new NanotrasenStylesheet(new BaseStylesheet.NoConfig(), this));
-            SheetSystem = Init(new SystemStylesheet(new BaseStylesheet.NoConfig(), this));
-            SheetNano = new StyleNano(_resCache).Stylesheet; // TODO: REMOVE (obsolete)
-            SheetSpace = new StyleSpace(_resCache).Stylesheet; // TODO: REMOVE (obsolete)
-
-            _userInterfaceManager.Stylesheet = SheetNanotrasen;
 
             // warn about unused sheetlets
             if (UnusedSheetlets.Count > 0)
@@ -89,20 +81,25 @@ namespace Content.Client.Stylesheets
             sawmill.Debug("Rebuilding stylesheets for font change...");
             var sw = Stopwatch.StartNew();
 
+            BuildStylesheets();
+
+            sawmill.Debug($"Rebuilt {_styleRuleCount} style rules in {sw.Elapsed}");
+        }
+
+        private void BuildStylesheets()
+        {
             var tys = _reflection.FindTypesWithAttribute<CommonSheetletAttribute>();
             UnusedSheetlets = [..tys];
 
-            Stylesheets.Clear();
+            Stylesheets = new Dictionary<string, Stylesheet>();
             _styleRuleCount = 0;
 
             SheetNanotrasen = Init(new NanotrasenStylesheet(new BaseStylesheet.NoConfig(), this));
             SheetSystem = Init(new SystemStylesheet(new BaseStylesheet.NoConfig(), this));
-            SheetNano = new StyleNano(_resCache).Stylesheet;
-            SheetSpace = new StyleSpace(_resCache).Stylesheet;
+            SheetNano = new StyleNano(_resCache).Stylesheet; // TODO: REMOVE (obsolete)
+            SheetSpace = new StyleSpace(_resCache).Stylesheet; // TODO: REMOVE (obsolete)
 
             _userInterfaceManager.Stylesheet = SheetNanotrasen;
-
-            sawmill.Debug($"Rebuilt {_styleRuleCount} style rules in {sw.Elapsed}");
         }
         // HONK END
 

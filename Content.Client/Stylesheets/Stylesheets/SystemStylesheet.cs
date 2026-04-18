@@ -1,4 +1,7 @@
 using System.Linq;
+//HONK START
+using Content.Client.RussStation.Stylesheets;
+//HONK END
 using Content.Client.Stylesheets.Fonts;
 using Robust.Client.ResourceManagement;
 using Robust.Client.UserInterface;
@@ -38,22 +41,10 @@ public partial class SystemStylesheet : CommonStylesheet
     {
         BaseFont = new NotoFontFamilyStack(ResCache);
 
-        // HONK START - Font customization
-        var fontTemplate = man.FontManager.GetFontPathTemplate();
-        var fontKinds = man.FontManager.GetAvailableKinds();
-        BaseFont.SetPrimaryFont(fontTemplate, fontKinds);
-
+        //HONK START - Font customization (fork-owned helper)
+        _commonFontSizes = ForkFontCustomization.Apply(BaseFont, man, PrimaryFontSize, FontSizeStep, _commonFontSizes);
         var customSize = man.FontManager.CurrentSize;
-        if (customSize != PrimaryFontSize)
-        {
-            _commonFontSizes = new List<(string?, int)>
-            {
-                (null, customSize),
-                (StyleClass.FontSmall, customSize - FontSizeStep),
-                (StyleClass.FontLarge, customSize + FontSizeStep),
-            };
-        }
-        // HONK END
+        //HONK END
 
         var rules = new[]
         {
