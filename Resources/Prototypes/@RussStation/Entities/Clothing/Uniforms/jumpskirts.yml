@@ -1,0 +1,10 @@
+- type: entity
+  parent: ClothingUniformSkirtBase
+  id: ClothingUniformJumpskirtHydroponicsRustic
+  name: rustic hydroponics jumpskirt
+  description: Has a strong earthy smell to it. Hopefully it's merely dirty as opposed to soiled.
+  components:
+  - type: Sprite
+    sprite: '@RussStation/Clothing/Uniforms/Jumpskirt/rustic_botanist.rsi'
+  - type: Clothing
+    sprite: '@RussStation/Clothing/Uniforms/Jumpskirt/rustic_botanist.rsi'

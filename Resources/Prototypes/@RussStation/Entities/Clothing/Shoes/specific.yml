@@ -1,0 +1,10 @@
+- type: entity
+  parent: ClothingShoesBaseButcherable
+  id: ClothingShoesHydroponicsRustic
+  name: rustic hydroponics shoes
+  description: Sturdy and comfortable shoes for working the fields
+  components:
+  - type: Sprite
+    sprite: '@RussStation/Clothing/Shoes/Specific/rustic_botanist.rsi'
+  - type: Clothing
+    sprite: '@RussStation/Clothing/Shoes/Specific/rustic_botanist.rsi'

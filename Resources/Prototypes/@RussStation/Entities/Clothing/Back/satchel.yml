@@ -1,0 +1,8 @@
+- type: entity
+  parent: ClothingBackpackSatchel
+  id: ClothingBackpackSatchelHydroponicsRustic
+  name: rustic hydroponics satchel
+  description: A satchel made of all natural fibers.
+  components:
+  - type: Sprite
+    sprite: '@RussStation/Clothing/Back/Satchels/rustic_botanist.rsi'

@@ -1,0 +1,77 @@
+# Rustic Time
+- type: loadoutEffectGroup
+  id: RusticBotanist
+  effects:
+  - !type:JobRequirementLoadoutEffect
+    requirement:
+      !type:DepartmentTimeRequirement
+      department: Hydroponics
+      time: 15h
+
+# Jumpsuit
+- type: loadout
+  id: BotanistJumpsuitRustic
+  effects:
+  - !type:GroupLoadoutEffect
+    proto: RusticBotanist
+  equipment:
+    jumpsuit: ClothingUniformJumpsuitHydroponicsRustic
+
+- type: loadout
+  id: BotanistJumpskirtRustic
+  effects:
+  - !type:GroupLoadoutEffect
+    proto: RusticBotanist
+  equipment:
+    jumpsuit: ClothingUniformJumpskirtHydroponicsRustic
+
+# Shoes
+- type: loadout
+  id: BotanistShoesRustic
+  effects:
+  - !type:GroupLoadoutEffect
+    proto: RusticBotanist
+  equipment:
+    shoes: ClothingShoesHydroponicsRustic
+
+# Hat
+- type: loadout
+  id: BotanistStrawhat
+  effects:
+  - !type:GroupLoadoutEffect
+    proto: RusticBotanist
+  equipment:
+    head: ClothingHeadHatStrawHatRustic
+
+- type: loadout
+  id: BotanistStrawhatMessy
+  effects:
+  - !type:GroupLoadoutEffect
+    proto: RusticBotanist
+  equipment:
+    head: ClothingHeadHatStrawHatRusticMessy
+
+# Bags
+- type: loadout
+  id: BotanistBackpackRustic
+  effects:
+  - !type:GroupLoadoutEffect
+    proto: RusticBotanist
+  equipment:
+    back: ClothingBackpackHydroponicsRustic
+
+- type: loadout
+  id: BotanistSatchelRustic
+  effects:
+  - !type:GroupLoadoutEffect
+    proto: RusticBotanist
+  equipment:
+    back: ClothingBackpackSatchelHydroponicsRustic
+
+- type: loadout
+  id: BotanistDuffelRustic
+  effects:
+  - !type:GroupLoadoutEffect
+    proto: RusticBotanist
+  equipment:
+    back: ClothingBackpackDuffelHydroponicsRustic
