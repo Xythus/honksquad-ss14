@@ -23,16 +23,6 @@ public sealed class WoundEffectsSystem : EntitySystem
     [Dependency] private readonly IGameTiming _timing = default!;
     [Dependency] private readonly IRobustRandom _random = default!;
 
-    /// <summary>
-    /// Movement speed multiplier applied for tier 2+ fractures and tier 2+ burns.
-    /// </summary>
-    private const float MovementSlowMultiplier = 0.7f;
-
-    /// <summary>
-    /// Chance to drop a held item when hit with a tier 3 fracture.
-    /// </summary>
-    private const float DropChance = 0.5f;
-
     public override void Initialize()
     {
         base.Initialize();
@@ -57,8 +47,8 @@ public sealed class WoundEffectsSystem : EntitySystem
 
         // Fractures: tier 2+ slows movement
         // Burns: tier 2+ slows movement
-        if (fractureTier >= 2 || burnTier >= 2)
-            args.ModifySpeed(MovementSlowMultiplier);
+        if (fractureTier >= WoundsConstants.MovementSlowTier || burnTier >= WoundsConstants.MovementSlowTier)
+            args.ModifySpeed(WoundsConstants.MovementSlowMultiplier);
     }
 
     private void OnHealthExamined(EntityUid uid, WoundComponent comp, ref HealthBeingExaminedEvent args)
@@ -98,10 +88,10 @@ public sealed class WoundEffectsSystem : EntitySystem
 
         // Tier 3 fracture: chance to drop held items on hit
         var fractureTier = _wounds.GetWorstTier(comp, WoundCategory.Fracture);
-        if (fractureTier < 3)
+        if (fractureTier < WoundsConstants.FractureDropTier)
             return;
 
-        if (!_random.Prob(DropChance))
+        if (!_random.Prob(WoundsConstants.FractureDropChance))
             return;
 
         if (!TryComp<HandsComponent>(uid, out var hands))
@@ -125,12 +115,12 @@ public sealed class WoundEffectsSystem : EntitySystem
         var burnTier = _wounds.GetWorstTier(comp, WoundCategory.Burn);
 
         if (fractureTier > 0)
-            _alerts.ShowAlert(uid, comp.FractureAlert, (short) (fractureTier - 1));
+            _alerts.ShowAlert(uid, comp.FractureAlert, (short) (fractureTier - WoundsConstants.AlertSeverityTierOffset));
         else
             _alerts.ClearAlert(uid, comp.FractureAlert);
 
         if (burnTier > 0)
-            _alerts.ShowAlert(uid, comp.BurnAlert, (short) (burnTier - 1));
+            _alerts.ShowAlert(uid, comp.BurnAlert, (short) (burnTier - WoundsConstants.AlertSeverityTierOffset));
         else
             _alerts.ClearAlert(uid, comp.BurnAlert);
     }

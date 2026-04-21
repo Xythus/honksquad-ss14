@@ -69,11 +69,11 @@ public sealed partial class SurgerySystem
     {
         // Cautery burn damage
         var damage = new DamageSpecifier();
-        damage.DamageDict.Add("Heat", FixedPoint2.New(2));
+        damage.DamageDict.Add("Heat", FixedPoint2.New(SurgeryConstants.CauteryBurnDamage));
         _damageable.TryChangeDamage(patient, damage);
 
         // Stop all bleeding
-        _bloodstream.TryModifyBleedAmount((patient, null), -100f);
+        _bloodstream.TryModifyBleedAmount((patient, null), SurgeryConstants.CauteryBleedClearAmount);
 
         if (surgeon != null)
             _popup.PopupEntity(Loc.GetString("surgery-step-cauterize", ("user", surgeon.Value), ("target", patient)), patient);
@@ -124,7 +124,6 @@ public sealed partial class SurgerySystem
 
         var hasHealingStep = false;
         var currentDamage = _damageable.GetPositiveDamage((patient, damageable));
-        const float epsilon = 0.01f;
 
         foreach (var step in proto.Steps)
         {
@@ -135,7 +134,7 @@ public sealed partial class SurgerySystem
 
             foreach (var type in step.Healing.DamageDict.Keys)
             {
-                if (currentDamage.DamageDict.TryGetValue(type, out var amount) && amount > FixedPoint2.New(epsilon))
+                if (currentDamage.DamageDict.TryGetValue(type, out var amount) && amount > FixedPoint2.New(SurgeryConstants.HealingDamageEpsilon))
                     return true;
             }
         }
