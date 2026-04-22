@@ -392,11 +392,27 @@ public sealed class ActionButton : Control, IEntityControl
     public void UpdateBackground()
     {
         _controller ??= UserInterfaceManager.GetUIController<ActionUIController>();
+        //HONK START - fork empty-slot preview toggle + accessibility button-background alpha.
+        // Empty slots reveal at full alpha during drag so drop targets are visible even
+        // when the user has the persistent empty-slot toggle off, and the slot background
+        // texture draws in that case so the preview has something to render.
+        var honkShowEmpty = Action == null
+            && (Content.Client.RussStation.ActionBar.ActionBarCustomizationController.ShowEmptySlots
+                || _controller.IsDragging);
+        var honkAlpha = Content.Client.RussStation.ActionBar.ActionBarCustomizationController.ButtonBackgroundAlpha;
+        const float honkEmptyFadeRatio = 0.4f;
+        var honkAlphaByte = (byte) Math.Clamp(honkAlpha * 255f, 0, 255);
+        var honkEmptyAlphaByte = (byte) Math.Clamp(honkAlpha * honkEmptyFadeRatio * 255f, 0, 255);
+        Button.Modulate = honkShowEmpty && !_controller.IsDragging
+            ? new Color(255, 255, 255, honkEmptyAlphaByte)
+            : new Color(255, 255, 255, honkAlphaByte);
         if (Action != null ||
-            _controller.IsDragging && GetPositionInParent() == Parent?.ChildCount - 1)
+            _controller.IsDragging && GetPositionInParent() == Parent?.ChildCount - 1
+            || honkShowEmpty)
         {
             Button.Texture = _buttonBackgroundTexture;
         }
+        //HONK END
         else
         {
             Button.Texture = null;

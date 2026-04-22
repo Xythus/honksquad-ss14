@@ -57,6 +57,21 @@ public sealed partial class MiscTab : Control
         //HONK END
         Control.AddOptionCheckBox(CCVars.StaticStorageUI, StaticStorageUI);
 
+        //HONK START - Action bar customization
+        var cfg = IoCManager.Resolve<Robust.Shared.Configuration.IConfigurationManager>();
+        Control.AddOption(new OptionSliderIntCVar(
+            Control, cfg, CCVars.HonkActionBarRows, ActionBarRowsSlider, 1, 4,
+            (_, value) => value.ToString()));
+        Control.AddOption(new OptionSliderIntCVar(
+            Control, cfg, CCVars.HonkActionBarSlotsPerRow, ActionBarSlotsPerRowSlider, 1, 10,
+            (_, value) => value.ToString()));
+        Control.AddOption(new OptionSliderIntCVar(
+            Control, cfg, CCVars.HonkActionBarSlotSpacing, ActionBarSlotSpacingSlider, 0, 16,
+            (_, value) => $"{value}px"));
+        Control.AddOptionCheckBox(CCVars.HonkActionBarShowKeybindLabel, ActionBarShowKeybindLabel);
+        Control.AddOptionCheckBox(CCVars.HonkActionBarShowEmptySlots, ActionBarShowEmptySlots);
+        //HONK END
+
         Control.Initialize();
     }
 }

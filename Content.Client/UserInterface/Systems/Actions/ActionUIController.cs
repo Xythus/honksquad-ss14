@@ -247,6 +247,11 @@ public sealed class ActionUIController : UIController, IOnStateChanged<GameplayS
             _actionsSystem?.TriggerAction(action);
     }
 
+    //HONK START - remember which slot an action from a given provider item last occupied, so
+    // hand<->pocket moves (which revoke + regrant the action) don't shuffle the bar layout.
+    private readonly Dictionary<EntityUid, int> _honkLastSlotByProvider = new();
+    //HONK END
+
     private void OnActionAdded(EntityUid actionId)
     {
         if (_actionsSystem?.GetAction(actionId) is not {} action)
@@ -260,6 +265,29 @@ public sealed class ActionUIController : UIController, IOnStateChanged<GameplayS
         if (_actions.Contains(action))
             return;
 
+        //HONK START - fork auto-add toggle + provider-slot memory. Hand/pocket swaps of an item that
+        // already had a slot always restore to that slot regardless of auto-add (the player accepted
+        // the action onto the bar previously, so a move shouldn't silently drop it). The trailing-null
+        // trim in OnActionRemoved means the remembered slot can be past _actions.Count by the time
+        // we re-add, so pad up to it (capped at the bound hotbar key count). Truly new providers
+        // fall through to the auto-add check.
+        if (action.Comp.Container is {} provider
+            && _honkLastSlotByProvider.TryGetValue(provider, out var lastSlot)
+            && lastSlot >= 0
+            && lastSlot < ContentKeyFunctions.GetHotbarBoundKeys().Length)
+        {
+            while (_actions.Count <= lastSlot)
+                _actions.Add(null);
+            if (_actions[lastSlot] == null)
+            {
+                _actions[lastSlot] = action;
+                return;
+            }
+        }
+        if (!Content.Client.RussStation.ActionBar.ActionBarCustomizationController.AutoAddActions)
+            return;
+        //HONK END
+
         _actions.Add(action);
     }
 
@@ -271,7 +299,18 @@ public sealed class ActionUIController : UIController, IOnStateChanged<GameplayS
         if (actionId == SelectingTargetFor)
             StopTargeting();
 
-        _actions.RemoveAll(x => x == actionId);
+        //HONK START - null the slot in place + record provider->slot so re-granted actions return home
+        for (var i = 0; i < _actions.Count; i++)
+        {
+            if (_actions[i] != actionId)
+                continue;
+            if (_actionsSystem?.GetAction(actionId) is {} action && action.Comp.Container is {} provider)
+                _honkLastSlotByProvider[provider] = i;
+            _actions[i] = null;
+        }
+        while (_actions.Count > 0 && _actions[^1] == null)
+            _actions.RemoveAt(_actions.Count - 1);
+        //HONK END
     }
 
     private void OnActionsUpdated()
@@ -281,6 +320,11 @@ public sealed class ActionUIController : UIController, IOnStateChanged<GameplayS
         if (_actionsSystem != null)
             _container?.SetActionData(_actionsSystem, _actions.ToArray());
     }
+
+    //HONK START - public entry so the fork controller can force a hotbar rebuild when empty-slot /
+    // slots-per-row / rows CVars change and the padding needs to grow or shrink.
+    public void HonkRefreshHotbar() => OnActionsUpdated();
+    //HONK END
 
     private void ActionButtonPressed(ButtonEventArgs args)
     {
@@ -439,14 +483,31 @@ public sealed class ActionUIController : UIController, IOnStateChanged<GameplayS
             button.ClearData();
             if (_container?.TryGetButtonIndex(button, out position) ?? false)
             {
-                if (_actions.Count > position && position >= 0)
-                    _actions.RemoveAt(position);
+                //HONK START - keep _actions sparse so a cleared middle slot doesn't shift later actions left
+                if (position >= 0 && position < _actions.Count)
+                {
+                    _actions[position] = null;
+                    while (_actions.Count > 0 && _actions[^1] == null)
+                        _actions.RemoveAt(_actions.Count - 1);
+                }
+                //HONK END
             }
         }
         else if (button.TryReplaceWith(actionId.Value, _actionsSystem) &&
             _container != null &&
             _container.TryGetButtonIndex(button, out position))
         {
+            //HONK START - pad with nulls so an action dropped on slot N lands at slot N, not at Count,
+            // and update provider->slot memory so re-acquiring the item later restores to the new slot
+            // rather than the original auto-populated one.
+            while (_actions.Count < position)
+                _actions.Add(null);
+            if (_actionsSystem.GetAction(actionId.Value) is {} placedAction
+                && placedAction.Comp.Container is {} placedProvider)
+            {
+                _honkLastSlotByProvider[placedProvider] = position;
+            }
+            //HONK END
             if (position >= _actions.Count)
             {
                 _actions.Add(actionId);
@@ -524,6 +585,13 @@ public sealed class ActionUIController : UIController, IOnStateChanged<GameplayS
     {
         if (args.Function == EngineKeyFunctions.UIRightClick)
         {
+            //HONK START - locked bars swallow right-click clear so a mis-click can't wipe a slot
+            if (Content.Client.RussStation.ActionBar.ActionBarCustomizationController.LockActions)
+            {
+                args.Handle();
+                return;
+            }
+            //HONK END
             SetAction(button, null);
             args.Handle();
             return;
@@ -540,6 +608,10 @@ public sealed class ActionUIController : UIController, IOnStateChanged<GameplayS
         args.Handle();
         if (button.Action != null)
         {
+            //HONK START - lock blocks drag-rearrange on the bar; clicking an action to fire it still works
+            if (Content.Client.RussStation.ActionBar.ActionBarCustomizationController.LockActions)
+                return;
+            //HONK END
             _menuDragHelper.MouseDown(button);
             return;
         }
@@ -590,6 +662,9 @@ public sealed class ActionUIController : UIController, IOnStateChanged<GameplayS
 
     private bool OnMenuBeginDrag()
     {
+        //HONK START - pad empty drop targets into the bar for the duration of the drag
+        UIManager.GetUIController<Content.Client.RussStation.ActionBar.ActionBarCustomizationController>().HonkSetDragActive(true);
+        //HONK END
         // TODO ACTIONS
         // The dragging icon shuld be based on the entity's icon style. I.e. if the action has a large icon texture,
         // and a small item/provider sprite, then the dragged icon should be the big texture, not the provider.
@@ -623,6 +698,9 @@ public sealed class ActionUIController : UIController, IOnStateChanged<GameplayS
 
     private void OnMenuEndDrag()
     {
+        //HONK START - trim the drag-only empty slots back out now that the drop is resolved
+        UIManager.GetUIController<Content.Client.RussStation.ActionBar.ActionBarCustomizationController>().HonkSetDragActive(false);
+        //HONK END
         _dragShadow.Texture = null;
         _dragShadow.Visible = false;
     }
@@ -657,7 +735,10 @@ public sealed class ActionUIController : UIController, IOnStateChanged<GameplayS
 
         _window.OnOpen += OnWindowOpened;
         _window.OnClose += OnWindowClosed;
-        //HONK - ClearButton removed; right-click the search box to clear it
+        //HONK START - ClearButton removed (right-click the search box instead); wire fork
+        // lock + auto-add checkboxes on the actions window.
+        UIManager.GetUIController<Content.Client.RussStation.ActionBar.ActionBarCustomizationController>().HonkBindWindow(_window);
+        //HONK END
         _window.SearchBar.OnTextChanged += OnSearchChanged;
         _window.FilterButton.OnItemSelected += OnFilterSelected;
 
@@ -668,7 +749,17 @@ public sealed class ActionUIController : UIController, IOnStateChanged<GameplayS
 
         RegisterActionContainer(ActionsBar.ActionsContainer);
 
+        //HONK START - apply fork layout (rows, slots-per-row, spacing, empty preview, min-slot padding)
+        // once the container exists and before LinkAllActions populates it; a second call after
+        // linking re-asserts the layout in case upstream rebuilds the grid during linking.
+        UIManager.GetUIController<Content.Client.RussStation.ActionBar.ActionBarCustomizationController>().HonkOnContainerReady();
+        //HONK END
+
         _actionsSystem?.LinkAllActions();
+
+        //HONK START - re-apply after the initial action link rebuilds the container children
+        UIManager.GetUIController<Content.Client.RussStation.ActionBar.ActionBarCustomizationController>().HonkOnContainerReady();
+        //HONK END
     }
 
     public void RegisterActionContainer(ActionButtonContainer container)
@@ -746,12 +837,29 @@ public sealed class ActionUIController : UIController, IOnStateChanged<GameplayS
         _container?.ClearActionData();
         QueueWindowUpdate();
         StopTargeting();
+        //HONK START - reset the first-link flag so next connection gets the default bar populated
+        // even if auto-add is off; within a connection the guard preserves the curated layout on respawn.
+        _honkLoadedDefaultsThisConnection = false;
+        //HONK END
     }
+
+    //HONK START - track whether defaults have been populated this connection so auto-add off still
+    // gets a sensible initial bar on first server link. Reset on unlink-all-actions (disconnect).
+    private bool _honkLoadedDefaultsThisConnection;
+    //HONK END
 
     private void LoadDefaultActions()
     {
         if (_actionsSystem == null)
             return;
+
+        //HONK START - auto-add off skips the respawn / body-swap repopulate so a curated bar survives,
+        // but first link per connection always loads defaults so a new connect isn't a blank bar.
+        if (_honkLoadedDefaultsThisConnection
+            && !Content.Client.RussStation.ActionBar.ActionBarCustomizationController.AutoAddActions)
+            return;
+        _honkLoadedDefaultsThisConnection = true;
+        //HONK END
 
         var actions = _actionsSystem.GetClientActions().Where(action => action.Comp.AutoPopulate).ToList();
         actions.Sort(ActionComparer);
