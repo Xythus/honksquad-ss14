@@ -17,6 +17,8 @@ namespace Content.Client.RussStation.Popups;
 /// Popups for entities the local player can't examine (out of range, occluded, wrong map) are dropped
 /// so the log doesn't leak information the player shouldn't have. Cursor / coordinate-only popups with
 /// no source entity always log since those are typically addressed directly to the local player.
+/// Repeated popups within a short window are coalesced in-place by ChatUIController (shared path with
+/// emote coalescing), so this system does not need its own dedup dictionary.
 /// </remarks>
 public sealed class PopupLogSystem : EntitySystem
 {
