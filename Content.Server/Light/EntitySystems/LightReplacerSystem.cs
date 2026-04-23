@@ -10,6 +10,9 @@ using JetBrains.Annotations;
 using Robust.Shared.Audio;
 using Robust.Shared.Audio.Systems;
 using Robust.Shared.Containers;
+//HONK START - Light replacer recycler
+using Content.Shared.RussStation.Light;
+//HONK END
 
 namespace Content.Server.Light.EntitySystems;
 
@@ -134,6 +137,13 @@ public sealed class LightReplacerSystem : SharedLightReplacerSystem
                 return false;
         }
 
+        //HONK START - let the recycler system own the whole replace flow when present
+        var recycleEv = new LightReplacerRecycleReplaceEvent(fixtureUid, userUid, fixtureBulbUid);
+        RaiseLocalEvent(replacerUid, ref recycleEv);
+        if (recycleEv.Handled)
+            return recycleEv.Success;
+        //HONK END
+
         // try get first inserted bulb of the same type as targeted light fixtutre
         var bulb = replacer.InsertedBulbs.ContainedEntities.FirstOrDefault(
             e => CompOrNull<LightBulbComponent>(e)?.Type == fixture.BulbType);
@@ -162,6 +172,14 @@ public sealed class LightReplacerSystem : SharedLightReplacerSystem
         if (wasReplaced)
         {
             _audio.PlayPvs(replacer.Sound, replacerUid);
+
+            //HONK START - Light replacer recycler: let recycler consume the broken bulb
+            if (fixtureBulbUid != null && userUid != null)
+            {
+                var ev = new LightReplacerBulbReplacedEvent(fixtureBulbUid.Value, userUid.Value);
+                RaiseLocalEvent(replacerUid, ev);
+            }
+            //HONK END
         }
 
         return wasReplaced;
@@ -182,6 +200,15 @@ public sealed class LightReplacerSystem : SharedLightReplacerSystem
         // only normal (non-broken) bulbs can be inserted inside light replacer
         if (bulb.State != LightBulbState.Normal)
         {
+            //HONK START - route broken manual-inserts to the recycler fork system, which consumes
+            // the bulb for points instead of rejecting it. Upstream behavior is unchanged for
+            // replacers that don't carry a LightReplacerRecyclerComponent.
+            var recycleEv = new Content.Shared.RussStation.Light.LightReplacerBrokenBulbInsertEvent(bulbUid, userUid);
+            RaiseLocalEvent(replacerUid, ref recycleEv);
+            if (recycleEv.Handled)
+                return true;
+            //HONK END
+
             if (showTooltip && userUid != null)
             {
                 var msg = Loc.GetString("comp-light-replacer-insert-broken-light");
@@ -199,6 +226,14 @@ public sealed class LightReplacerSystem : SharedLightReplacerSystem
                 ("light-replacer", replacerUid), ("bulb", bulbUid));
             _popupSystem.PopupEntity(msg, replacerUid, userUid.Value, PopupType.Medium);
         }
+        //HONK START - fork recycler caps storage; surface a "full" popup so the user gets feedback
+        // instead of a silent no-op when the cap cancels the insert.
+        else if (!hasInsert && showTooltip && userUid != null && HasComp<LightReplacerRecyclerComponent>(replacerUid))
+        {
+            var full = Loc.GetString("light-replacer-recycler-full");
+            _popupSystem.PopupEntity(full, replacerUid, userUid.Value);
+        }
+        //HONK END
 
         return hasInsert;
     }
