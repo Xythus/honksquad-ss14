@@ -36,7 +36,8 @@ public class ActionButtonContainer : GridContainer
         var uniqueCount = Math.Min(system.GetClientActions().Count(), actionTypes.Length + 1);
         var keys = ContentKeyFunctions.GetHotbarBoundKeys();
         //HONK START - honour the caller's sparse layout (drag-to-slot places actions at specific indices)
-        // and pad empties up to the fork-requested minimum, capped at bound hotbar key count.
+        // and pad empties up to the fork-requested minimum, capped at the bound hotbar key count.
+        // GetHotbarBoundKeys includes HotbarShift1-0, so slots 10-19 default to Shift+Num1..0.
         uniqueCount = Math.Max(uniqueCount, actionTypes.Length);
         if (HonkMinSlotCount > 0)
             uniqueCount = Math.Max(uniqueCount, Math.Min(HonkMinSlotCount, keys.Length));
@@ -63,11 +64,17 @@ public class ActionButtonContainer : GridContainer
         {
             var button = new ActionButton(_entity);
 
-            if (!keys.TryGetValue(index, out var boundKey))
-                return button;
-
-            //HONK START - KeyBind setter now resolves the short label and autofits it; no extra work here
-            button.KeyBind = boundKey;
+            //HONK START - per-slot hotkey lookup via SlotHotkeyController: user
+            // overrides and slots past the default hotbar range land on the right
+            // label. Falls back to the upstream fixed-index key when the UI
+            // subsystem isn't wired yet (tests, early init).
+            var resolved = UserInterfaceManager
+                .GetUIController<Content.Client.RussStation.ActionBar.SlotHotkeyController>()
+                .GetHotkeyForSlot(index);
+            if (resolved is { } slotKey)
+                button.KeyBind = slotKey;
+            else if (keys.TryGetValue(index, out var boundKey))
+                button.KeyBind = boundKey;
             //HONK END
 
             return button;

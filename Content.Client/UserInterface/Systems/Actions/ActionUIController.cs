@@ -107,6 +107,32 @@ public sealed class ActionUIController : UIController, IOnStateChanged<GameplayS
             _actionsSystem.OnActionAdded += OnActionAdded;
             _actionsSystem.OnActionRemoved += OnActionRemoved;
             _actionsSystem.ActionsUpdated += OnActionsUpdated;
+
+            //HONK START - catch emote actions whose OnActionAdded fired before the subscription
+            // above (initial ActionsComponent state is applied while we're still in LobbyState).
+            // Non-emote actions come back through LoadDefaultActions on link; emote actions have
+            // autoPopulate: false and would otherwise miss their saved slot restoration.
+            var custom = UIManager.GetUIController<Content.Client.RussStation.ActionBar.ActionBarCustomizationController>();
+            foreach (var existing in _actionsSystem.GetClientActions())
+            {
+                if (!EntityManager.TryGetComponent<Content.Shared.RussStation.VerbBindings.HonkEmoteActionComponent>(existing.Owner, out var emoteTag))
+                    continue;
+                if (_actions.Contains(existing))
+                    continue;
+                if (!custom.TryGetSavedEmoteSlot(emoteTag.Emote, out var savedSlot))
+                    continue;
+                if (savedSlot < 0 || savedSlot >= ContentKeyFunctions.GetHotbarBoundKeys().Length)
+                    continue;
+                while (_actions.Count <= savedSlot)
+                    _actions.Add(null);
+                if (_actions[savedSlot] == null)
+                    _actions[savedSlot] = existing.Owner;
+            }
+            // Push the updated _actions into the bar; without this the placement is in our
+            // list but never reaches the visible container.
+            if (_container != null)
+                _container.SetActionData(_actionsSystem, _actions.ToArray());
+            //HONK END
         }
 
         UpdateFilterLabel();
@@ -265,12 +291,36 @@ public sealed class ActionUIController : UIController, IOnStateChanged<GameplayS
         if (_actions.Contains(action))
             return;
 
-        //HONK START - fork auto-add toggle + provider-slot memory. Hand/pocket swaps of an item that
-        // already had a slot always restore to that slot regardless of auto-add (the player accepted
-        // the action onto the bar previously, so a move shouldn't silently drop it). The trailing-null
-        // trim in OnActionRemoved means the remembered slot can be past _actions.Count by the time
-        // we re-add, so pad up to it (capped at the bound hotbar key count). Truly new providers
-        // fall through to the auto-add check.
+        //HONK START - fork add-to-bar gating.
+        // * Emote actions never auto-add regardless of the global toggle; they stay in the
+        //   actions menu until the player drags one onto a slot.
+        // * Hand/pocket swaps of an item that already had a slot always restore to that slot
+        //   (player accepted the action onto the bar previously, so a move shouldn't silently
+        //   drop it). The trailing-null trim in OnActionRemoved means the remembered slot can
+        //   be past _actions.Count by the time we re-add, so pad up to it (capped at the bound
+        //   hotbar key count).
+        // * Truly new providers fall through to the auto-add CVar.
+        if (EntityManager.TryGetComponent<Content.Shared.RussStation.VerbBindings.HonkEmoteActionComponent>(actionId, out var emoteTag))
+        {
+            // Emotes normally stay in the menu, but a player's saved placement from a prior
+            // session wins: if the emote's proto id has a remembered slot we're free to fill,
+            // drop it there. Go through the controller directly so its Initialize (and CVar
+            // parse) is guaranteed to have run before we read the map.
+            var custom = UIManager.GetUIController<Content.Client.RussStation.ActionBar.ActionBarCustomizationController>();
+            if (custom.TryGetSavedEmoteSlot(emoteTag.Emote, out var savedSlot)
+                && savedSlot >= 0
+                && savedSlot < ContentKeyFunctions.GetHotbarBoundKeys().Length)
+            {
+                while (_actions.Count <= savedSlot)
+                    _actions.Add(null);
+                if (_actions[savedSlot] == null)
+                {
+                    _actions[savedSlot] = action;
+                    return;
+                }
+            }
+            return;
+        }
         if (action.Comp.Container is {} provider
             && _honkLastSlotByProvider.TryGetValue(provider, out var lastSlot)
             && lastSlot >= 0
@@ -322,8 +372,12 @@ public sealed class ActionUIController : UIController, IOnStateChanged<GameplayS
     }
 
     //HONK START - public entry so the fork controller can force a hotbar rebuild when empty-slot /
-    // slots-per-row / rows CVars change and the padding needs to grow or shrink.
+    // slots-per-row / rows CVars change and the padding needs to grow or shrink; and a slot-trigger
+    // entry point so SlotHotkeyController can dispatch after resolving a key→slot mapping that
+    // differs from the upstream fixed index.
     public void HonkRefreshHotbar() => OnActionsUpdated();
+
+    public void HonkTriggerSlot(int slot) => TriggerAction(slot);
     //HONK END
 
     private void ActionButtonPressed(ButtonEventArgs args)
@@ -372,6 +426,9 @@ public sealed class ActionUIController : UIController, IOnStateChanged<GameplayS
             Filters.Innate => comp.Container == null || comp.Container == _playerManager.LocalEntity,
             Filters.Instant => EntityManager.HasComponent<InstantActionComponent>(uid),
             Filters.Targeted => EntityManager.HasComponent<TargetActionComponent>(uid),
+            //HONK START - emote-as-action filter (#579)
+            Filters.Emote => EntityManager.HasComponent<Content.Shared.RussStation.VerbBindings.HonkEmoteActionComponent>(uid),
+            //HONK END
             _ => throw new ArgumentOutOfRangeException(nameof(filter), filter, null)
         };
     }
@@ -483,9 +540,21 @@ public sealed class ActionUIController : UIController, IOnStateChanged<GameplayS
             button.ClearData();
             if (_container?.TryGetButtonIndex(button, out position) ?? false)
             {
-                //HONK START - keep _actions sparse so a cleared middle slot doesn't shift later actions left
+                //HONK START - keep _actions sparse so a cleared middle slot doesn't shift later actions
+                // left, and forget any emote-slot memory for whatever was in this slot so it doesn't
+                // come back on reconnect.
                 if (position >= 0 && position < _actions.Count)
                 {
+                    if (_actions[position] is { } clearedAction
+                        && EntityManager.TryGetComponent<Content.Shared.RussStation.VerbBindings.HonkEmoteActionComponent>(clearedAction, out var clearedEmote))
+                    {
+                        // Only forget the saved slot if the emote hasn't already been moved to a
+                        // different slot in this same drag (DragAction does place-then-clear, so the
+                        // new slot is already in the map by the time we reach the clear).
+                        var custom = UIManager.GetUIController<Content.Client.RussStation.ActionBar.ActionBarCustomizationController>();
+                        if (custom.TryGetSavedEmoteSlot(clearedEmote.Emote, out var savedPos) && savedPos == position)
+                            custom.HonkRememberEmoteSlot(clearedEmote.Emote, null);
+                    }
                     _actions[position] = null;
                     while (_actions.Count > 0 && _actions[^1] == null)
                         _actions.RemoveAt(_actions.Count - 1);
@@ -498,14 +567,19 @@ public sealed class ActionUIController : UIController, IOnStateChanged<GameplayS
             _container.TryGetButtonIndex(button, out position))
         {
             //HONK START - pad with nulls so an action dropped on slot N lands at slot N, not at Count,
-            // and update provider->slot memory so re-acquiring the item later restores to the new slot
-            // rather than the original auto-populated one.
+            // update provider->slot memory so re-acquiring the item later restores to the new slot,
+            // and persist emote placements so disconnect+reconnect restores the same layout.
             while (_actions.Count < position)
                 _actions.Add(null);
             if (_actionsSystem.GetAction(actionId.Value) is {} placedAction
                 && placedAction.Comp.Container is {} placedProvider)
             {
                 _honkLastSlotByProvider[placedProvider] = position;
+            }
+            if (EntityManager.TryGetComponent<Content.Shared.RussStation.VerbBindings.HonkEmoteActionComponent>(actionId.Value, out var placedEmote))
+            {
+                UIManager.GetUIController<Content.Client.RussStation.ActionBar.ActionBarCustomizationController>()
+                    .HonkRememberEmoteSlot(placedEmote.Emote, position);
             }
             //HONK END
             if (position >= _actions.Count)
@@ -606,6 +680,20 @@ public sealed class ActionUIController : UIController, IOnStateChanged<GameplayS
     private void HandleActionPressed(GUIBoundKeyEventArgs args, ActionButton button)
     {
         args.Handle();
+
+        //HONK START - assign-hotkey mode: left-click arms the clicked slot so the
+        // next hotbar keypress becomes that slot's hotkey. Short-circuit the drag
+        // and trigger paths entirely while assign mode is on.
+        var slotHotkeys = UIManager.GetUIController<Content.Client.RussStation.ActionBar.SlotHotkeyController>();
+        if (slotHotkeys.AssignMode
+            && _container != null
+            && _container.TryGetButtonIndex(button, out var armSlot))
+        {
+            slotHotkeys.ArmSlot(armSlot);
+            return;
+        }
+        //HONK END
+
         if (button.Action != null)
         {
             //HONK START - lock blocks drag-rearrange on the bar; clicking an action to fire it still works
@@ -633,6 +721,12 @@ public sealed class ActionUIController : UIController, IOnStateChanged<GameplayS
             return;
 
         args.Handle();
+
+        //HONK START - assign-hotkey mode: swallow release so the action doesn't trigger on a
+        // slot the player was arming for rebind. Arming already happened in HandleActionPressed.
+        if (UIManager.GetUIController<Content.Client.RussStation.ActionBar.SlotHotkeyController>().AssignMode)
+            return;
+        //HONK END
 
         if (_menuDragHelper.IsDragging)
         {

@@ -42,6 +42,9 @@ public sealed partial class ActionsWindow : DefaultWindow
         Item,
         Innate,
         Instant,
-        Targeted
+        Targeted,
+        //HONK START - emote-as-action filter (#579)
+        Emote,
+        //HONK END
     }
 }

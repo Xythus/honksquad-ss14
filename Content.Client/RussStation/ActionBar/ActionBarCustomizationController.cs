@@ -1,3 +1,4 @@
+using System.Linq;
 using Content.Client.Gameplay;
 using Content.Client.UserInterface.Systems.Actions;
 using Content.Client.UserInterface.Systems.Actions.Controls;
@@ -39,7 +40,7 @@ public sealed class ActionBarCustomizationController : UIController, IOnStateEnt
     // Read by the gameplay-screen resize handlers (HONK guards) to keep them from
     // calling MaxGridHeight/MaxGridWidth, which would flip the grid into size-limit
     // mode and silently overwrite the user's explicit row count on resize.
-    public const bool OverridesRowLayout = true;
+    public static readonly bool OverridesRowLayout = true;
 
     // Base 0.0-1.0 alpha applied to every action button's slot background. Read each
     // frame by ActionButton.UpdateBackground (HONK block). The empty-slot fade scales
@@ -49,6 +50,23 @@ public sealed class ActionBarCustomizationController : UIController, IOnStateEnt
     // Flipped by ActionUIController drag hooks so empty drop targets are padded into the
     // container even when the persistent show-empty toggle is off.
     public static bool IsDragActive { get; private set; }
+
+    // Mirrored from SlotHotkeyController so the bar-side code (UpdateBackground, ApplyLabels)
+    // can reveal every slot and its keybind label while the player is assigning hotkeys.
+    public static bool AssignHotkeyMode { get; private set; }
+
+    // Emote proto id -> slot index, persisted via honk.action_bar.emote_slots so a player's
+    // curated emote layout survives disconnects and server restarts. Read by OnActionAdded
+    // through TryGetSavedEmoteSlot so the controller is guaranteed to be instantiated.
+    private readonly Dictionary<string, int> _emoteSlots = new();
+
+    public bool TryGetSavedEmoteSlot(string? emoteProtoId, out int slot)
+    {
+        if (!string.IsNullOrEmpty(emoteProtoId) && _emoteSlots.TryGetValue(emoteProtoId, out slot))
+            return true;
+        slot = default;
+        return false;
+    }
 
     public override void Initialize()
     {
@@ -72,6 +90,42 @@ public sealed class ActionBarCustomizationController : UIController, IOnStateEnt
         _cfg.OnValueChanged(CCVars.HonkActionBarLock, v => LockActions = v, true);
         _cfg.OnValueChanged(CCVars.HonkActionBarButtonBackgroundAlpha,
             v => ButtonBackgroundAlpha = Math.Clamp(v, 0f, 1f), true);
+        _cfg.OnValueChanged(CCVars.HonkActionBarEmoteSlots, OnEmoteSlotsChanged, true);
+
+        // Mirror the assign-hotkey toggle so the bar auto-reveals while the player rebinds slots.
+        var slotHotkeys = UIManager.GetUIController<SlotHotkeyController>();
+        AssignHotkeyMode = slotHotkeys.AssignMode;
+        slotHotkeys.AssignStateChanged += OnAssignStateChanged;
+        // Rebuild the hotbar when any action-bar slot's binding changes so the labels track
+        // what Settings → Controls currently holds.
+        slotHotkeys.SlotBindingChanged += RefreshHotbar;
+    }
+
+    private void OnAssignStateChanged()
+    {
+        var slotHotkeys = UIManager.GetUIController<SlotHotkeyController>();
+        AssignHotkeyMode = slotHotkeys.AssignMode;
+        ApplyLayout();
+        ApplyLabels();
+        ApplyArmedHighlight();
+        RefreshHotbar();
+    }
+
+    // Highlight the currently-armed slot so the player has feedback between clicking a slot
+    // and pressing the hotbar key that will be assigned to it. Clears all highlights when
+    // assign mode is off or no slot is armed.
+    private void ApplyArmedHighlight()
+    {
+        if (GetContainer() is not { } container)
+            return;
+
+        var armed = UIManager.GetUIController<SlotHotkeyController>().ArmedSlot;
+        var i = 0;
+        foreach (var button in container.GetButtons())
+        {
+            button.HighlightRect.Visible = AssignHotkeyMode && armed == i;
+            i++;
+        }
     }
 
     private void OnRowsChanged(int value)
@@ -123,7 +177,11 @@ public sealed class ActionBarCustomizationController : UIController, IOnStateEnt
         container.Columns = _slotsPerRow;
         container.HSeparationOverride = _slotSpacing;
         container.VSeparationOverride = _slotSpacing;
-        container.HonkMinSlotCount = ShowEmptySlots || IsDragActive ? _rows * _slotsPerRow : 0;
+        // Reveal every slot (pad up to rows x slots_per_row) when either the user's persistent
+        // toggle is on, a drag is active, or the player is actively rebinding slot hotkeys.
+        container.HonkMinSlotCount = ShowEmptySlots || IsDragActive || AssignHotkeyMode
+            ? _rows * _slotsPerRow
+            : 0;
     }
 
     private void ApplyLabels()
@@ -131,12 +189,12 @@ public sealed class ActionBarCustomizationController : UIController, IOnStateEnt
         if (GetContainer() is not { } container)
             return;
 
-        // Only reveal labels on slots that actually hold an action; empty buttons
-        // shouldn't display a keybind that does nothing. Empty slots also show
-        // labels during a drag so the player can see which slot maps to which key.
+        // Normally labels only render on slots with an action and on drag targets. Assign-hotkey
+        // mode forces every slot's label visible so the player can see which key they're rebinding.
         foreach (var button in container.GetButtons())
         {
-            button.Label.Visible = _showKeybindLabel && (button.Action != null || IsDragActive);
+            button.Label.Visible = AssignHotkeyMode
+                || (_showKeybindLabel && (button.Action != null || IsDragActive));
         }
     }
 
@@ -147,6 +205,103 @@ public sealed class ActionBarCustomizationController : UIController, IOnStateEnt
         UIManager.GetUIController<ActionUIController>().HonkRefreshHotbar();
         // Padding may have added buttons; labels must be re-applied to the new ones.
         ApplyLabels();
+    }
+
+    private void OnEmoteSlotsChanged(string raw)
+    {
+        _emoteSlots.Clear();
+        if (string.IsNullOrWhiteSpace(raw))
+            return;
+        var protoMan = IoCManager.Resolve<Robust.Shared.Prototypes.IPrototypeManager>();
+        var dropped = false;
+        foreach (var entry in raw.Split(';', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var eq = entry.IndexOf('=');
+            if (eq <= 0 || eq == entry.Length - 1)
+                continue;
+            var id = entry[..eq];
+            if (!int.TryParse(entry.AsSpan(eq + 1), out var slot) || slot < 0)
+                continue;
+
+            // Drop entries whose proto id doesn't match a real EmotePrototype (hand-edited CVar,
+            // stale entry from a removed emote, etc.). The server still gates allowlist + per-mob
+            // AllowedToUseEmote on grant, so an invalid entry here just means dead weight.
+            if (!protoMan.HasIndex<Content.Shared.Chat.Prototypes.EmotePrototype>(id))
+            {
+                dropped = true;
+                continue;
+            }
+
+            _emoteSlots[id] = slot;
+        }
+
+        // Rewrite the CVar if we filtered anything so the pruned list is what lands on disk.
+        if (dropped)
+        {
+            _cfg.SetCVar(CCVars.HonkActionBarEmoteSlots, SerializeEmoteSlots());
+            _cfg.SaveToFile();
+        }
+    }
+
+    private string SerializeEmoteSlots()
+    {
+        var sb = new System.Text.StringBuilder();
+        var first = true;
+        foreach (var (id, slot) in _emoteSlots.OrderBy(kv => kv.Value))
+        {
+            if (!first)
+                sb.Append(';');
+            sb.Append(id).Append('=').Append(slot);
+            first = false;
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>Persist a saved slot for an emote prototype. Pass null to forget the slot.</summary>
+    public void HonkRememberEmoteSlot(string? emoteProtoId, int? slot)
+    {
+        if (string.IsNullOrEmpty(emoteProtoId))
+            return;
+
+        // Only persist real emote prototypes. Stops a bad caller (or a stale entity with
+        // garbage in the component) from poisoning the saved layout with unknown ids.
+        // The server gates actual dispatch through AllowedToUseEmote, so even if something
+        // slipped through here it wouldn't fire for a disallowed species.
+        if (slot != null
+            && !IoCManager.Resolve<Robust.Shared.Prototypes.IPrototypeManager>()
+                .HasIndex<Content.Shared.Chat.Prototypes.EmotePrototype>(emoteProtoId))
+        {
+            return;
+        }
+
+        var changed = false;
+        if (slot is { } index)
+        {
+            // If some other emote used to live in this slot, bump it out so two entries
+            // don't race each other back onto the bar on reconnect.
+            foreach (var existing in _emoteSlots.Where(kv => kv.Value == index && kv.Key != emoteProtoId)
+                         .Select(kv => kv.Key).ToList())
+            {
+                _emoteSlots.Remove(existing);
+                changed = true;
+            }
+
+            if (!_emoteSlots.TryGetValue(emoteProtoId, out var prior) || prior != index)
+            {
+                _emoteSlots[emoteProtoId] = index;
+                changed = true;
+            }
+        }
+        else if (_emoteSlots.Remove(emoteProtoId))
+        {
+            changed = true;
+        }
+
+        if (changed)
+        {
+            _cfg.SetCVar(CCVars.HonkActionBarEmoteSlots, SerializeEmoteSlots());
+            _cfg.SaveToFile();
+        }
     }
 
     // Wires the lock + auto-add toggle checkboxes on the actions window, called from
