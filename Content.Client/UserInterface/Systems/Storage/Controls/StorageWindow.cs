@@ -189,7 +189,9 @@ public sealed class StorageWindow : BaseWindow
 
         if (UserInterfaceManager.GetUIController<StorageUIController>().WindowTitle)
         {
+            //HONK START - pass viewer to Identity.Name so masks/identity-hiding respect the local player
             _titleLabel.Text = Identity.Name(entity.Value, _entity, _player.LocalEntity);
+            //HONK END
             _titleContainer.Visible = true;
         }
         else

@@ -1,7 +1,9 @@
 using System.Linq;
 using Content.Client.Lobby.UI.Roles;
 using Content.Client.Stylesheets;
+//HONK START - CCVar lookup for global trait point budget
 using Content.Shared.CCVar;
+//HONK END
 using Content.Shared.Traits;
 using Robust.Client.UserInterface.Controls;
 //HONK START - ProtoId lookups for category cap display
@@ -177,6 +179,7 @@ public sealed partial class HumanoidProfileEditor
         TraitsList.AddChild(columnsContainer);
         // HONK END
 
+        //HONK START - alphabetical sort, skip empty categories
         // Create UI view from model (sorted alphabetically by display name)
         foreach (var (categoryId, categoryTraits) in traitGroups.OrderBy(g =>
             g.Key == TraitCategoryPrototype.Default
@@ -187,6 +190,7 @@ public sealed partial class HumanoidProfileEditor
         {
             if (categoryTraits.Count == 0)
                 continue;
+        //HONK END
 
             TraitCategoryPrototype? category = null;
 
@@ -202,14 +206,14 @@ public sealed partial class HumanoidProfileEditor
             {
                 category = _prototypeManager.Index<TraitCategoryPrototype>(categoryId);
                 // Label
-                //HONK START - add to column instead of TraitsList
+                //HONK START - add to column instead of TraitsList; zeroed top margin
                 column.AddChild(new Label
-                //HONK END
                 {
                     Text = Loc.GetString(category.Name),
                     Margin = new Thickness(0, 0, 0, 0),
                     StyleClasses = { StyleClass.LabelHeading },
                 });
+                //HONK END
             }
 
             List<TraitPreferenceSelector?> selectors = new();
@@ -256,9 +260,8 @@ public sealed partial class HumanoidProfileEditor
 
             // HONK END
 
-            //HONK START - 2-column grid for trait selectors within each category
+            //HONK START - 2-column grid for trait selectors, routed to the per-category column
             var traitGrid = new GridContainer
-            //HONK END
             {
                 Columns = 2,
                 HorizontalExpand = true,
@@ -269,7 +272,7 @@ public sealed partial class HumanoidProfileEditor
                 if (selector == null)
                     continue;
 
-                //HONK START - Disable conflicted traits and show reason
+                // Disable conflicted traits and show reason
                 if (selector.TraitId is { } traitId && conflictReasons.TryGetValue(traitId, out var blockedBy))
                 {
                     selector.Checkbox.Disabled = true;
@@ -278,12 +281,12 @@ public sealed partial class HumanoidProfileEditor
                         "humanoid-profile-editor-trait-conflict",
                         ("traits", string.Join(", ", blockedBy)));
                 }
-                //HONK END
 
                 traitGrid.AddChild(selector);
             }
 
             column.AddChild(traitGrid);
+            //HONK END
 
             //HONK START - append category column to columns container
             columnsContainer.AddChild(column);
