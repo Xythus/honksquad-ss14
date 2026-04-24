@@ -3,6 +3,9 @@ using System.Text.RegularExpressions;
 using Content.Server.Speech.Components;
 using Content.Server.Speech.Prototypes;
 using Content.Shared.Speech;
+// HONK START - #634: Accentless strip-list event handling.
+using Content.Shared.Traits.Assorted;
+// HONK END
 using JetBrains.Annotations;
 using Robust.Shared.Prototypes;
 using Robust.Shared.Random;
@@ -27,6 +30,9 @@ namespace Content.Server.Speech.EntitySystems
             SubscribeLocalEvent<ReplacementAccentComponent, AccentGetEvent>(OnAccent);
             // HONK START - #634: fold legacy single `accent:` yaml field into the list so callers only read Accents.
             SubscribeLocalEvent<ReplacementAccentComponent, ComponentInit>(OnInit);
+            // Accentless dispatches this when a per-species strip list fires; handled here because
+            // ReplacementAccentComponent lives in Content.Server.
+            SubscribeLocalEvent<ReplacementAccentComponent, AccentlessStripReplacementAccentsEvent>(OnAccentlessStrip);
             // HONK END
 
             _proto.PrototypesReloaded += OnPrototypesReloaded;
@@ -42,6 +48,12 @@ namespace Content.Server.Speech.EntitySystems
             if (!component.Accents.Contains(id))
                 component.Accents.Add(id);
             component.Accent = null;
+        }
+
+        private void OnAccentlessStrip(EntityUid uid, ReplacementAccentComponent component, ref AccentlessStripReplacementAccentsEvent args)
+        {
+            foreach (var accentId in args.AccentIds)
+                component.Accents.Remove(accentId);
         }
         // HONK END
 

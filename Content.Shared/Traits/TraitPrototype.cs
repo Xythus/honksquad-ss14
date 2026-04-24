@@ -1,6 +1,9 @@
 using Content.Shared.Roles;
 using Content.Shared.Whitelist;
 using Robust.Shared.Prototypes;
+// HONK START - #634: species-aware trait visibility + per-species description overrides.
+using Content.Shared.Humanoid.Prototypes;
+// HONK END
 
 namespace Content.Shared.Traits;
 
@@ -85,4 +88,20 @@ public sealed partial class TraitPrototype : IPrototype
     [DataField]
     public List<string> ExcludedTags { get; private set; } = new();
     //HONK END
+
+    // HONK START - #634: species-aware trait visibility + per-species description overrides.
+    /// <summary>
+    /// If set, the trait is only offered in the character editor when the selected species is in this list.
+    /// Used to hide traits that have no effect on certain species (e.g. Accentless on Human).
+    /// </summary>
+    [DataField]
+    public List<ProtoId<SpeciesPrototype>>? SpeciesWhitelist;
+
+    /// <summary>
+    /// Optional per-species override for the trait's description, shown in the character editor.
+    /// Keyed by SpeciesPrototype id. Falls back to <see cref="Description"/> when no entry matches.
+    /// </summary>
+    [DataField]
+    public Dictionary<ProtoId<SpeciesPrototype>, LocId>? DescriptionOverrides;
+    // HONK END
 }

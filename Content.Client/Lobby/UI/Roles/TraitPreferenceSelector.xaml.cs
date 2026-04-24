@@ -6,6 +6,9 @@ using Robust.Client.UserInterface.XAML;
 //HONK START - ProtoId<TraitPrototype> for trait tracking
 using Robust.Shared.Prototypes;
 //HONK END
+// HONK START - #634: per-species description override.
+using Content.Shared.Humanoid.Prototypes;
+// HONK END
 
 namespace Content.Client.Lobby.UI.Roles;
 
@@ -44,6 +47,18 @@ public sealed partial class TraitPreferenceSelector : Control
             Checkbox.ToolTip = Loc.GetString(desc);
         }
     }
+
+    // HONK START - #634: species-aware overload that applies per-species description overrides.
+    public TraitPreferenceSelector(TraitPrototype trait, ProtoId<SpeciesPrototype>? species) : this(trait)
+    {
+        if (species is { } s
+            && trait.DescriptionOverrides is { } overrides
+            && overrides.TryGetValue(s, out var speciesDesc))
+        {
+            Checkbox.ToolTip = Loc.GetString(speciesDesc);
+        }
+    }
+    // HONK END
 
     private void OnCheckBoxToggled(BaseButton.ButtonToggledEventArgs args)
     {
