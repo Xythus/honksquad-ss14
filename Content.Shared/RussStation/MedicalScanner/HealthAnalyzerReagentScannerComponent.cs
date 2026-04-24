@@ -9,6 +9,7 @@ namespace Content.Shared.RussStation.MedicalScanner;
 /// off this component to avoid colliding with upstream's (component, event) subscription slot.
 /// </summary>
 [RegisterComponent, NetworkedComponent, AutoGenerateComponentState, AutoGenerateComponentPause]
+[Access(typeof(SharedHealthAnalyzerReagentSystem))]
 public sealed partial class HealthAnalyzerReagentScannerComponent : Component
 {
     /// <summary>
