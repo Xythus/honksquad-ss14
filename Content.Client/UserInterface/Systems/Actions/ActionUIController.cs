@@ -32,9 +32,10 @@ using static Content.Client.UserInterface.Systems.Actions.Windows.ActionsWindow;
 using static Robust.Client.UserInterface.Control;
 using static Robust.Client.UserInterface.Controls.BaseButton;
 using static Robust.Client.UserInterface.Controls.LineEdit;
-//HONK - filter control replaced with the inline HonkFilterPanel; nested event args come from there
+//HONK START - filter control replaced with the inline HonkFilterPanel; nested event args come from there
 using static Content.Client.RussStation.UI.HonkFilterPanel<
     Content.Client.UserInterface.Systems.Actions.Windows.ActionsWindow.Filters>;
+//HONK END
 using static Robust.Client.UserInterface.Controls.TextureRect;
 using static Robust.Shared.Input.Binding.PointerInputCmdHandler;
 
@@ -724,7 +725,8 @@ public sealed class ActionUIController : UIController, IOnStateChanged<GameplayS
         _menuDragHelper.EndDrag();
     }
 
-    //HONK - OnClearPressed removed; right-click the search box clears search text via the global handler
+    //HONK START - OnClearPressed removed; right-click the search box clears search text via the global handler
+    //HONK END
 
     private void OnSearchChanged(LineEditEventArgs args)
     {
@@ -915,7 +917,8 @@ public sealed class ActionUIController : UIController, IOnStateChanged<GameplayS
         {
             _window.OnOpen -= OnWindowOpened;
             _window.OnClose -= OnWindowClosed;
-            //HONK - ClearButton removed; right-click the search box to clear it
+            //HONK START - ClearButton removed; right-click the search box to clear it
+            //HONK END
             _window.SearchBar.OnTextChanged -= OnSearchChanged;
             _window.FilterButton.OnItemSelected -= OnFilterSelected;
 
