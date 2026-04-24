@@ -93,9 +93,22 @@ public abstract partial class SharedStunSystem
             if (!knockedDown.AutoStand || knockedDown.DoAfterId.HasValue || knockedDown.NextUpdate > GameTiming.CurTime)
                 continue;
 
-            TryStanding(uid);
+            // HONK START - #492: debounce failed retries so prediction divergence can't spawn per-tick DoAfter ghosts.
+            if (knockedDown.NextStandAttempt > GameTiming.CurTime)
+                continue;
+
+            if (!TryStanding(uid))
+            {
+                knockedDown.NextStandAttempt = GameTiming.CurTime + StandupRetryCooldown;
+                DirtyField(uid, knockedDown, nameof(KnockedDownComponent.NextStandAttempt));
+            }
+            // HONK END
         }
     }
+
+    // HONK START - #492: retry cooldown for failed auto-stand attempts (sleep/stun blocking stand-up).
+    private static readonly TimeSpan StandupRetryCooldown = TimeSpan.FromMilliseconds(250);
+    // HONK END
 
     private void OnRejuvenate(Entity<KnockedDownComponent> entity, ref RejuvenateEvent args)
     {
