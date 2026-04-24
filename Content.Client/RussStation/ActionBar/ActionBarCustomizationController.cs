@@ -1,11 +1,14 @@
 using System.Linq;
+using System.Numerics;
 using Content.Client.Gameplay;
 using Content.Client.UserInterface.Systems.Actions;
 using Content.Client.UserInterface.Systems.Actions.Controls;
 using Content.Client.UserInterface.Systems.Actions.Widgets;
 using Content.Client.UserInterface.Systems.Actions.Windows;
 using Content.Shared.CCVar;
+using Robust.Client.UserInterface;
 using Robust.Client.UserInterface.Controllers;
+using Robust.Client.UserInterface.Controls;
 using Robust.Shared.Configuration;
 
 namespace Content.Client.RussStation.ActionBar;
@@ -55,6 +58,14 @@ public sealed class ActionBarCustomizationController : UIController, IOnStateEnt
     // can reveal every slot and its keybind label while the player is assigning hotkeys.
     public static bool AssignHotkeyMode { get; private set; }
 
+    // Stashed when we lift the bar out of its XAML parent for free-positioning, so a
+    // reset to anchored mode can drop it back at the same sibling index.
+    private Control? _anchoredParent;
+    private int _anchoredIndex;
+    private LayoutContainer? _floatParent;
+    private float _positionX;
+    private float _positionY;
+
     // Emote proto id -> slot index, persisted via honk.action_bar.emote_slots so a player's
     // curated emote layout survives disconnects and server restarts. Read by OnActionAdded
     // through TryGetSavedEmoteSlot so the controller is guaranteed to be instantiated.
@@ -91,6 +102,12 @@ public sealed class ActionBarCustomizationController : UIController, IOnStateEnt
         _cfg.OnValueChanged(CCVars.HonkActionBarButtonBackgroundAlpha,
             v => ButtonBackgroundAlpha = Math.Clamp(v, 0f, 1f), true);
         _cfg.OnValueChanged(CCVars.HonkActionBarEmoteSlots, OnEmoteSlotsChanged, true);
+
+        _positionX = _cfg.GetCVar(CCVars.HonkActionBarPositionX);
+        _positionY = _cfg.GetCVar(CCVars.HonkActionBarPositionY);
+        _cfg.OnValueChanged(CCVars.HonkActionBarPositionX, v => { _positionX = v; ApplyPosition(); }, false);
+        _cfg.OnValueChanged(CCVars.HonkActionBarPositionY, v => { _positionY = v; ApplyPosition(); }, false);
+        _cfg.OnValueChanged(CCVars.HonkActionBarLock, _ => RefreshDragHandleVisibility(), false);
 
         // Mirror the assign-hotkey toggle so the bar auto-reveals while the player rebinds slots.
         var slotHotkeys = UIManager.GetUIController<SlotHotkeyController>();
@@ -304,14 +321,90 @@ public sealed class ActionBarCustomizationController : UIController, IOnStateEnt
         }
     }
 
-    // Wires the lock + auto-add toggle checkboxes on the actions window, called from
-    // the upstream LoadGui (HONK) each time the window is (re)created.
+    // Wires the auto-add toggle and the Presets button on the actions window, called from
+    // the upstream LoadGui (HONK) each time the window is (re)created. Lock has moved into
+    // the preset window so the bar's customisation controls live in one place.
     public void HonkBindWindow(ActionsWindow window)
     {
-        window.LockButton.Pressed = LockActions;
         window.AutoAddButton.Pressed = AutoAddActions;
-        window.LockButton.OnToggled += a => _cfg.SetCVar(CCVars.HonkActionBarLock, a.Pressed);
         window.AutoAddButton.OnToggled += a => _cfg.SetCVar(CCVars.HonkActionBarAutoAddActions, a.Pressed);
+        window.PresetsButton.OnPressed += _ => OpenPresetsWindow();
+    }
+
+    private ActionBarPresetsWindow? _presetsWindow;
+    private ActionBarPresetStore? _presetStoreCached;
+
+    private ActionBarPresetStore GetPresetStore()
+    {
+        // Lazily allocated so the controller doesn't pull in IResourceManager until the
+        // player actually opens the preset UI; keeps client startup unaffected.
+        return _presetStoreCached ??= new ActionBarPresetStore(IoCManager.Resolve<Robust.Shared.ContentPack.IResourceManager>());
+    }
+
+    private void OpenPresetsWindow()
+    {
+        if (_presetsWindow is { Disposed: false })
+        {
+            _presetsWindow.Open();
+            _presetsWindow.MoveToFront();
+            return;
+        }
+        _presetsWindow = new ActionBarPresetsWindow(GetPresetStore(), _cfg, CapturePreset, ApplyPreset, ResetToDefaults);
+        _presetsWindow.OpenCentered();
+    }
+
+    private ActionBarPreset CapturePreset()
+    {
+        var actions = UIManager.GetUIController<ActionUIController>();
+        return new ActionBarPreset
+        {
+            Rows = _rows,
+            SlotsPerRow = _slotsPerRow,
+            SlotSpacing = _slotSpacing,
+            ShowKeybindLabel = _showKeybindLabel,
+            ShowEmptySlots = ShowEmptySlots,
+            AutoAddActions = AutoAddActions,
+            Lock = LockActions,
+            ButtonBackgroundAlpha = ButtonBackgroundAlpha,
+            PositionX = _positionX,
+            PositionY = _positionY,
+            SlotProtoIds = actions.HonkGetSlotProtoIds(),
+        };
+    }
+
+    private void ApplyPreset(ActionBarPreset preset)
+    {
+        _cfg.SetCVar(CCVars.HonkActionBarRows, preset.Rows);
+        _cfg.SetCVar(CCVars.HonkActionBarSlotsPerRow, preset.SlotsPerRow);
+        _cfg.SetCVar(CCVars.HonkActionBarSlotSpacing, preset.SlotSpacing);
+        _cfg.SetCVar(CCVars.HonkActionBarShowKeybindLabel, preset.ShowKeybindLabel);
+        _cfg.SetCVar(CCVars.HonkActionBarShowEmptySlots, preset.ShowEmptySlots);
+        _cfg.SetCVar(CCVars.HonkActionBarAutoAddActions, preset.AutoAddActions);
+        _cfg.SetCVar(CCVars.HonkActionBarLock, preset.Lock);
+        _cfg.SetCVar(CCVars.HonkActionBarButtonBackgroundAlpha, preset.ButtonBackgroundAlpha);
+        _cfg.SetCVar(CCVars.HonkActionBarPositionX, preset.PositionX);
+        _cfg.SetCVar(CCVars.HonkActionBarPositionY, preset.PositionY);
+        _cfg.SaveToFile();
+
+        UIManager.GetUIController<ActionUIController>().HonkLoadFromPreset(preset.SlotProtoIds);
+    }
+
+    private void ResetToDefaults()
+    {
+        // Walk the CVar definitions so any future field added to CCVars.ActionBar.cs lands
+        // back on its declared default without needing a manual sync here.
+        _cfg.SetCVar(CCVars.HonkActionBarRows, CCVars.HonkActionBarRows.DefaultValue);
+        _cfg.SetCVar(CCVars.HonkActionBarSlotsPerRow, CCVars.HonkActionBarSlotsPerRow.DefaultValue);
+        _cfg.SetCVar(CCVars.HonkActionBarSlotSpacing, CCVars.HonkActionBarSlotSpacing.DefaultValue);
+        _cfg.SetCVar(CCVars.HonkActionBarShowKeybindLabel, CCVars.HonkActionBarShowKeybindLabel.DefaultValue);
+        _cfg.SetCVar(CCVars.HonkActionBarShowEmptySlots, CCVars.HonkActionBarShowEmptySlots.DefaultValue);
+        _cfg.SetCVar(CCVars.HonkActionBarAutoAddActions, CCVars.HonkActionBarAutoAddActions.DefaultValue);
+        _cfg.SetCVar(CCVars.HonkActionBarButtonBackgroundAlpha, CCVars.HonkActionBarButtonBackgroundAlpha.DefaultValue);
+        _cfg.SetCVar(CCVars.HonkActionBarPositionX, CCVars.HonkActionBarPositionX.DefaultValue);
+        _cfg.SetCVar(CCVars.HonkActionBarPositionY, CCVars.HonkActionBarPositionY.DefaultValue);
+        _cfg.SaveToFile();
+
+        UIManager.GetUIController<ActionUIController>().HonkLoadFromPreset(new List<string?>());
     }
 
     // Called from the upstream ActionUIController (HONK) once the action bar widget
@@ -323,6 +416,121 @@ public sealed class ActionBarCustomizationController : UIController, IOnStateEnt
         ApplyLayout();
         ApplyLabels();
         RefreshHotbar();
+        WireDragHandle();
+        ApplyPosition();
+    }
+
+    private ActionsBar? GetBar() => UIManager.GetActiveUIWidgetOrNull<ActionsBar>();
+
+    private void WireDragHandle()
+    {
+        if (GetBar() is not { } bar)
+            return;
+        // Defensive: re-wiring on every container ready call would stack handlers, so
+        // unsubscribe first.
+        bar.HonkDragHandle.DragMoved -= OnHandleDragMoved;
+        bar.HonkDragHandle.DragEnded -= OnHandleDragEnded;
+        bar.HonkDragHandle.DragMoved += OnHandleDragMoved;
+        bar.HonkDragHandle.DragEnded += OnHandleDragEnded;
+        RefreshDragHandleVisibility();
+    }
+
+    private void RefreshDragHandleVisibility()
+    {
+        if (GetBar() is { } bar)
+            bar.HonkDragHandle.Visible = !LockActions;
+    }
+
+    private void OnHandleDragMoved(Vector2 delta)
+    {
+        if (GetBar() is not { } bar)
+            return;
+        // Capture the bar's pre-reparent screen position so the first drag doesn't snap
+        // the bar to (0,0) before we've written any explicit coordinates.
+        var initial = bar.GlobalPosition;
+        EnsureFloating(bar);
+        if (_floatParent == null)
+            return;
+        if (_positionX < 0 || _positionY < 0)
+        {
+            var local = initial - _floatParent.GlobalPosition;
+            _positionX = local.X;
+            _positionY = local.Y;
+        }
+        var size = bar.Size;
+        var bounds = _floatParent.Size;
+        _positionX = Math.Clamp(_positionX + delta.X, ActionBarConstants.PositionEdgeMargin, MathF.Max(ActionBarConstants.PositionEdgeMargin, bounds.X - size.X - ActionBarConstants.PositionEdgeMargin));
+        _positionY = Math.Clamp(_positionY + delta.Y, ActionBarConstants.PositionEdgeMargin, MathF.Max(ActionBarConstants.PositionEdgeMargin, bounds.Y - size.Y - ActionBarConstants.PositionEdgeMargin));
+        LayoutContainer.SetPosition(bar, new Vector2(_positionX, _positionY));
+    }
+
+    private void OnHandleDragEnded()
+    {
+        // Persist whatever the in-flight drag landed on. SaveToFile so a crash mid-session
+        // doesn't lose the player's chosen layout.
+        _cfg.SetCVar(CCVars.HonkActionBarPositionX, _positionX);
+        _cfg.SetCVar(CCVars.HonkActionBarPositionY, _positionY);
+        _cfg.SaveToFile();
+    }
+
+    /// <summary>Applies the saved position CVars to the bar, lifting it into the screen's
+    /// LayoutContainer when set or restoring its XAML parent when reset to -1.</summary>
+    private void ApplyPosition()
+    {
+        if (GetBar() is not { } bar)
+            return;
+        if (_positionX < 0 || _positionY < 0)
+        {
+            EnsureAnchored(bar);
+            return;
+        }
+        EnsureFloating(bar);
+        if (_floatParent == null)
+            return;
+        LayoutContainer.SetPosition(bar, new Vector2(_positionX, _positionY));
+    }
+
+    private void EnsureFloating(ActionsBar bar)
+    {
+        if (bar.Parent is LayoutContainer current && current == _floatParent)
+            return;
+        var origin = bar.Parent;
+        if (origin == null)
+            return;
+        // Walk up to find the screen-level LayoutContainer (ViewportContainer in both
+        // game screens) so SetPosition's attached props will actually be honoured.
+        Control? walker = origin;
+        LayoutContainer? layout = null;
+        while (walker != null)
+        {
+            if (walker is LayoutContainer lc)
+            {
+                layout = lc;
+                break;
+            }
+            walker = walker.Parent;
+        }
+        if (layout == null)
+            return;
+        if (_anchoredParent == null)
+        {
+            _anchoredParent = origin;
+            _anchoredIndex = bar.GetPositionInParent();
+        }
+        origin.RemoveChild(bar);
+        layout.AddChild(bar);
+        _floatParent = layout;
+    }
+
+    private void EnsureAnchored(ActionsBar bar)
+    {
+        if (_floatParent == null || bar.Parent != _floatParent || _anchoredParent == null)
+            return;
+        _floatParent.RemoveChild(bar);
+        _anchoredParent.AddChild(bar);
+        // Keep the original sibling order so the menu bar / vote menu stack as before.
+        var clamped = Math.Clamp(_anchoredIndex, 0, _anchoredParent.ChildCount - 1);
+        bar.SetPositionInParent(clamped);
     }
 
     // Called from the action drag hooks so the container can pad in empty drop targets

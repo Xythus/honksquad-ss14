@@ -1,0 +1,23 @@
+<DefaultWindow xmlns="https://spacestation14.io"
+               xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+               Title="{Loc ui-actionbar-presets-title}"
+               MinSize="320 280"
+               SetSize="360 360">
+    <BoxContainer Orientation="Vertical" Margin="6" SeparationOverride="6">
+        <CheckBox Name="LockToggle" Text="{Loc ui-actionbar-presets-lock}" Access="Public"/>
+
+        <ScrollContainer VerticalExpand="True" HorizontalExpand="True">
+            <BoxContainer Name="PresetList" Orientation="Vertical" Access="Public" SeparationOverride="2"/>
+        </ScrollContainer>
+
+        <Label Name="EmptyLabel" Text="{Loc ui-actionbar-presets-empty}" Access="Public"/>
+
+        <BoxContainer Orientation="Horizontal" SeparationOverride="6">
+            <LineEdit Name="SaveNameEdit" Access="Public" HorizontalExpand="True"
+                      PlaceHolder="{Loc ui-actionbar-presets-save-prompt}"/>
+            <Button Name="SaveAsButton" Text="{Loc ui-actionbar-presets-save-as}" Access="Public"/>
+        </BoxContainer>
+
+        <Button Name="ResetButton" Text="{Loc ui-actionbar-presets-reset}" Access="Public"/>
+    </BoxContainer>
+</DefaultWindow>

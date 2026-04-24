@@ -378,6 +378,58 @@ public sealed class ActionUIController : UIController, IOnStateChanged<GameplayS
     public void HonkRefreshHotbar() => OnActionsUpdated();
 
     public void HonkTriggerSlot(int slot) => TriggerAction(slot);
+
+    /// <summary>Snapshot the bar's current slots as a list of action prototype IDs so a
+    /// preset can be replayed later. Empty / unknown slots persist as null entries.</summary>
+    public List<string?> HonkGetSlotProtoIds()
+    {
+        var result = new List<string?>(_actions.Count);
+        foreach (var slot in _actions)
+        {
+            string? id = null;
+            if (slot is { } uid && EntityManager.TryGetComponent<MetaDataComponent>(uid, out var meta))
+                id = meta.EntityPrototype?.ID;
+            result.Add(id);
+        }
+        return result;
+    }
+
+    /// <summary>Replace the bar's slot contents from a preset's prototype-id list.
+    /// Slots whose prototype no longer exists in the player's actions are blanked so
+    /// the layout doesn't shift; missing actions are skipped silently.</summary>
+    public void HonkLoadFromPreset(List<string?> protoIds)
+    {
+        if (_actionsSystem == null)
+            return;
+
+        // Build a proto-id -> first-matching-action map from the player's known actions
+        // so a slot that asks for "ActionToggleInternals" lands on whichever action has
+        // that prototype. First-match keeps duplicate-prototype actions deterministic.
+        var byProto = new Dictionary<string, EntityUid>();
+        foreach (var action in _actionsSystem.GetClientActions())
+        {
+            if (!EntityManager.TryGetComponent<MetaDataComponent>(action.Owner, out var meta))
+                continue;
+            var id = meta.EntityPrototype?.ID;
+            if (id == null || byProto.ContainsKey(id))
+                continue;
+            byProto[id] = action.Owner;
+        }
+
+        _actions.Clear();
+        _honkLastSlotByProvider.Clear();
+        foreach (var id in protoIds)
+        {
+            if (id != null && byProto.TryGetValue(id, out var uid))
+                _actions.Add(uid);
+            else
+                _actions.Add(null);
+        }
+
+        if (_container != null)
+            _container.SetActionData(_actionsSystem, _actions.ToArray());
+        OnActionsUpdated();
+    }
     //HONK END
 
     private void ActionButtonPressed(ButtonEventArgs args)

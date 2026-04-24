@@ -15,11 +15,12 @@
                       PlaceHolder="{Loc ui-actionmenu-search-bar-placeholder-text}"/>
         </BoxContainer>
         <!-- HONK START - ClearButton removed (right-click the search box), plus fork toggles
-             for bar lock and auto-add-new-actions, and FilterContainer hosts the inline
-             HonkFilterPanel body when expanded -->
+             for auto-add-new-actions and a Presets button that opens the preset/lock window
+             (#604), and FilterContainer hosts the inline HonkFilterPanel body when expanded -->
         <BoxContainer Orientation="Horizontal" SeparationOverride="8">
-            <CheckBox Name="LockButton" Access="Public" Text="{Loc ui-actionmenu-lock-button}"/>
             <CheckBox Name="AutoAddButton" Access="Public" Text="{Loc ui-actionmenu-auto-add-button}"/>
+            <Control HorizontalExpand="True"/>
+            <Button Name="PresetsButton" Access="Public" Text="{Loc ui-actionmenu-presets-button}"/>
         </BoxContainer>
         <BoxContainer Name="FilterContainer" Access="Public" Orientation="Vertical"/>
         <!-- HONK END -->

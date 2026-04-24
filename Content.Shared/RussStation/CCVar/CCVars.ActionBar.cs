@@ -75,4 +75,19 @@ public sealed partial class CCVars
     /// </summary>
     public static readonly CVarDef<string> HonkActionBarEmoteSlots =
         CVarDef.Create("honk.action_bar.emote_slots", string.Empty, CVar.CLIENTONLY | CVar.ARCHIVE);
+
+    /// <summary>
+    /// Saved X coordinate of the action bar in viewport pixels. -1 means use the
+    /// screen's default anchor (current behaviour). Set by the in-game drag handle
+    /// on the bar; clamped to keep the bar inside the viewport.
+    /// </summary>
+    public static readonly CVarDef<float> HonkActionBarPositionX =
+        CVarDef.Create("honk.action_bar.position_x", -1f, CVar.CLIENTONLY | CVar.ARCHIVE);
+
+    /// <summary>
+    /// Saved Y coordinate of the action bar in viewport pixels. -1 means use the
+    /// screen's default anchor (current behaviour).
+    /// </summary>
+    public static readonly CVarDef<float> HonkActionBarPositionY =
+        CVarDef.Create("honk.action_bar.position_y", -1f, CVar.CLIENTONLY | CVar.ARCHIVE);
 }
