@@ -15,7 +15,7 @@ using Robust.Shared.Prototypes;
 
 namespace Content.Server.RussStation.Light;
 
-public sealed class LightReplacerRecyclerSystem : EntitySystem
+public sealed class LightReplacerRecyclerSystem : SharedLightReplacerRecyclerSystem
 {
     [Dependency] private readonly SharedContainerSystem _container = default!;
     [Dependency] private readonly SharedPopupSystem _popup = default!;
