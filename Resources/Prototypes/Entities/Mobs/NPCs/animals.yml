@@ -1,6 +1,8 @@
 - type: entity
   name: bat
-  parent: [ SimpleMobBase, FlyingMobBase, MobCombat ]
+  # HONK START - re-parented to BaseMobAnimal so IngestionSystem finds a stomach (issue #499)
+  parent: [ BaseMobAnimal, SimpleMobBase, FlyingMobBase, MobCombat ]
+  # HONK END
   id: MobBat
   description: Some cultures find them terrifying, others crunchy on the teeth.
   components:
@@ -84,7 +86,9 @@
 
 - type: entity
   name: bee
-  parent: [ SimpleMobBase, FlyingMobBase ]
+  # HONK START - re-parented to BaseMobAnimal so IngestionSystem finds a stomach (issue #499)
+  parent: [ BaseMobAnimal, SimpleMobBase, FlyingMobBase ]
+  # HONK END
   id: MobBee
   description: Nice to have, but you can't build a civilization on a foundation of honey alone.
   components:
@@ -201,7 +205,9 @@
 
 - type: entity
   name: chicken
-  parent: SimpleMobBase
+  # HONK START - re-parented to BaseMobAnimal so IngestionSystem finds a stomach (issue #499)
+  parent: [ BaseMobAnimal, SimpleMobBase ]
+  # HONK END
   id: MobChicken
   description: Comes before an egg, and IS a dinosaur!
   components:
@@ -353,7 +359,9 @@
 
 - type: entity
   name: cockroach
-  parent: SimpleMobBase
+  # HONK START - re-parented to BaseMobAnimal so IngestionSystem finds a stomach (issue #499)
+  parent: [ BaseMobAnimal, SimpleMobBase ]
+  # HONK END
   id: MobCockroach
   description: This station is just crawling with bugs.
   components:
@@ -661,7 +669,9 @@
 
 - type: entity
   name: mallard duck #Quack
-  parent: SimpleMobBase
+  # HONK START - re-parented to BaseMobAnimal so IngestionSystem finds a stomach (issue #499)
+  parent: [ BaseMobAnimal, SimpleMobBase ]
+  # HONK END
   id: MobDuckMallard
   description: An adorable mallard duck, it's fluffy and soft!
   components:
@@ -791,7 +801,9 @@
 
 - type: entity
   name: butterfly
-  parent: [ SimpleMobBase, FlyingMobBase ]
+  # HONK START - re-parented to BaseMobAnimal so IngestionSystem finds a stomach (issue #499)
+  parent: [ BaseMobAnimal, SimpleMobBase, FlyingMobBase ]
+  # HONK END
   id: MobButterfly
   description: Despite popular misconceptions, it's not actually made of butter.
   components:
@@ -3433,7 +3445,9 @@
 
 - type: entity
   name: hamster
-  parent: [ SimpleMobBase, MobCombat, StripableInventoryBase]
+  # HONK START - re-parented to BaseMobAnimal so IngestionSystem finds a stomach (issue #499)
+  parent: [ BaseMobAnimal, SimpleMobBase, MobCombat, StripableInventoryBase]
+  # HONK END
   id: MobHamster
   description: A cute, fluffy, robust hamster.
   components:
