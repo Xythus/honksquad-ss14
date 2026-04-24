@@ -8,3 +8,10 @@ namespace Content.Shared.RussStation.Carrying.Events;
 /// </summary>
 [Serializable, NetSerializable]
 public sealed partial class CarryDoAfterEvent : SimpleDoAfterEvent;
+
+/// <summary>
+/// DoAfter event for a third party prying a carried entity free from its carrier.
+/// User is the interrupter, target is the carried entity.
+/// </summary>
+[Serializable, NetSerializable]
+public sealed partial class CarryInterruptDoAfterEvent : SimpleDoAfterEvent;
