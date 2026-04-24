@@ -3,7 +3,6 @@ using Content.IntegrationTests.Tests.Interaction;
 using Content.Server.RussStation.Economy;
 using Content.Server.VendingMachines;
 using Content.Shared.Hands.EntitySystems;
-using Content.Shared.RussStation.Economy.Components;
 using Content.Shared.Stacks;
 using Content.Shared.VendingMachines;
 
@@ -82,7 +81,7 @@ public sealed class VendingPaymentTest : InteractionTest
         await Server.WaitPost(() =>
         {
             var comp = SEntMan.EnsureComponent<PlayerBalanceComponent>(SPlayer);
-            comp.Balance = 0;
+            SEntMan.System<PlayerBalanceSystem>().SetBalance(SPlayer, 0, comp);
         });
 
         // Power and open
@@ -116,7 +115,7 @@ public sealed class VendingPaymentTest : InteractionTest
         await Server.WaitPost(() =>
         {
             var comp = SEntMan.EnsureComponent<PlayerBalanceComponent>(SPlayer);
-            comp.Balance = 10000;
+            SEntMan.System<PlayerBalanceSystem>().SetBalance(SPlayer, 10000, comp);
         });
 
         // Power and open

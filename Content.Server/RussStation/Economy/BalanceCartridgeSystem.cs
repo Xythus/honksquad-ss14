@@ -12,6 +12,7 @@ namespace Content.Server.RussStation.Economy;
 public sealed class BalanceCartridgeSystem : EntitySystem
 {
     [Dependency] private readonly CartridgeLoaderSystem? _cartridgeLoader = default!;
+    [Dependency] private readonly PlayerBalanceSystem _balance = default!;
 
     public override void Initialize()
     {
@@ -54,7 +55,7 @@ public sealed class BalanceCartridgeSystem : EntitySystem
         if (!TryComp<PlayerBalanceComponent>(holder, out var balance))
             return;
 
-        balance.PaycheckMuted = !balance.PaycheckMuted;
+        _balance.SetPaycheckMuted(holder, !balance.PaycheckMuted, balance);
         UpdateUiState(uid, loaderUid);
     }
 

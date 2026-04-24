@@ -166,6 +166,42 @@ public sealed class PlayerBalanceSystem : EntitySystem
     }
 
     /// <summary>
+    /// Directly overwrites the balance. Use <see cref="AddBalance"/> or
+    /// <see cref="TryDeduct"/> for normal gameplay paths; this is for tests
+    /// and admin tooling that need to seed state.
+    /// </summary>
+    public void SetBalance(EntityUid uid, int amount, PlayerBalanceComponent? comp = null)
+    {
+        if (!Resolve(uid, ref comp, false))
+            return;
+
+        comp.Balance = amount;
+    }
+
+    /// <summary>
+    /// Assigns the player's job id used for wage tier lookup.
+    /// </summary>
+    public void SetJobId(EntityUid uid, string? jobId, PlayerBalanceComponent? comp = null)
+    {
+        if (!Resolve(uid, ref comp, false))
+            return;
+
+        comp.JobId = jobId;
+    }
+
+    /// <summary>
+    /// Toggles or sets whether paycheck notifications are muted for this entity.
+    /// Exposed so the wallet cartridge UI can flip the flag without poking the component directly.
+    /// </summary>
+    public void SetPaycheckMuted(EntityUid uid, bool muted, PlayerBalanceComponent? comp = null)
+    {
+        if (!Resolve(uid, ref comp, false))
+            return;
+
+        comp.PaycheckMuted = muted;
+    }
+
+    /// <summary>
     /// Create a new bank account for an entity, invalidating any previous account.
     /// Intentionally resets balance to startingBalance (default 0) -- creating a new account
     /// means the old one and its funds are gone. This is the intended penalty for account replacement.
