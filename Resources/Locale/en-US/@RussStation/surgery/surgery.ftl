@@ -23,7 +23,7 @@ surgery-step-treat-burn-wounds = {CAPITALIZE(THE($user))} cauterizes and dresses
 
 ## Alerts
 alerts-surgery-draped-name = Surgical Drapes
-alerts-surgery-draped-desc = You are draped for surgery. Click to remove the drapes.
+alerts-surgery-draped-desc = You are draped for surgery. They will fall off if you stand.
 
 ## Examine
 surgery-examine-active = [color=cyan]{CAPITALIZE(SUBJECT($target))} {CONJUGATE-BE($target)} undergoing {$procedure}.[/color]
@@ -78,3 +78,7 @@ surgery-category-tend-wounds = Tend Wounds
 surgery-category-organ-manipulation = Organ Manipulation
 surgery-category-implants = Implants
 surgery-category-advanced = Advanced
+
+## Interrupt
+surgery-interrupt-patient = Your surgery is cut short as you move!
+surgery-interrupt-surgeon = {CAPITALIZE(THE($target))} moves! The procedure is ruined.
