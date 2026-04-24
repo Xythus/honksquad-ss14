@@ -24,6 +24,9 @@ namespace Content.Client.VendingMachines.UI
         private readonly Dictionary<EntProtoId, EntityUid> _dummies = [];
         private readonly Dictionary<EntProtoId, (ListContainerButton Button, VendingMachineItem Item)> _listItems = new();
         private readonly Dictionary<EntProtoId, uint> _amounts = new();
+        //HONK START - Track list data per proto so UpdateAmounts can refresh stale entries
+        private readonly Dictionary<EntProtoId, VendorItemsListData> _listDataByProto = new();
+        //HONK END
 
         //HONK START - Vending prices display
         private Dictionary<string, int>? _prices;
@@ -101,6 +104,9 @@ namespace Content.Client.VendingMachines.UI
             //HONK END
             _listItems.Clear();
             _amounts.Clear();
+            //HONK START
+            _listDataByProto.Clear();
+            //HONK END
 
             if (inventory.Count == 0 && VendingContents.Visible)
             {
@@ -154,10 +160,14 @@ namespace Content.Client.VendingMachines.UI
                 if (itemText.Length > longestEntry.Length)
                     longestEntry = itemText;
 
-                listData.Add(new VendorItemsListData(prototype.ID, i)
+                //HONK START - Track list data records so UpdateAmounts can refresh them
+                var entryData = new VendorItemsListData(prototype.ID, i)
                 {
                     ItemText = itemText,
-                });
+                };
+                listData.Add(entryData);
+                _listDataByProto[entry.ID] = entryData;
+                //HONK END
             }
 
             VendingContents.PopulateList(listData);
@@ -179,15 +189,23 @@ namespace Content.Client.VendingMachines.UI
 
             foreach (var proto in _dummies.Keys)
             {
-                if (!_listItems.TryGetValue(proto, out var button))
-                    continue;
-
                 var dummy = _dummies[proto];
                 if (!cachedInventory.TryFirstOrDefault(o => o.ID == proto, out var entry))
                     continue;
                 var amount = entry.Amount;
                 // Could be better? Problem is all inventory entries get squashed.
                 var text = GetItemText(dummy, amount, proto);
+
+                //HONK START - Keep _amounts and list data in sync so that ListContainer
+                // virtualizing a row out and back in rebuilds it with the correct
+                // disabled state and label instead of stale values from Populate.
+                _amounts[proto] = amount;
+                if (_listDataByProto.TryGetValue(proto, out var data))
+                    data.ItemText = text;
+                //HONK END
+
+                if (!_listItems.TryGetValue(proto, out var button))
+                    continue;
 
                 button.Item.SetText(text);
                 button.Button.Disabled = !enabled || amount == 0;
