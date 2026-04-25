@@ -1,19 +1,25 @@
-﻿<widgets:ActionsBar
+<widgets:ActionsBar
     xmlns="https://spacestation14.io"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:widgets="clr-namespace:Content.Client.UserInterface.Systems.Actions.Widgets"
     xmlns:controls="clr-namespace:Content.Client.UserInterface.Systems.Actions.Controls"
+    xmlns:honk="clr-namespace:Content.Client.RussStation.ActionBar"
     VerticalExpand="False"
     Orientation="Horizontal"
     HorizontalExpand="False"
 >
-    <BoxContainer Orientation="Vertical">
-        <controls:ActionButtonContainer
-            HorizontalAlignment="Center"
-            VerticalAlignment="Center"
-            MaxSize="64 9999"
-            Name="ActionsContainer"
-            Access="Public"
-            Rows="1"/>
+    <BoxContainer Orientation="Horizontal">
+        <!-- HONK START - drag grabber for free-positioning the bar; controller toggles visibility on lock -->
+        <honk:ActionBarDragHandle Name="HonkDragHandle" Access="Public" Visible="False"/>
+        <!-- HONK END -->
+        <BoxContainer Orientation="Vertical">
+            <controls:ActionButtonContainer
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                MaxSize="64 9999"
+                Name="ActionsContainer"
+                Access="Public"
+                Rows="1"/>
+        </BoxContainer>
     </BoxContainer>
 </widgets:ActionsBar>

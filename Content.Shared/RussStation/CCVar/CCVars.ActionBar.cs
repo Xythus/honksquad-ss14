@@ -56,7 +56,7 @@ public sealed partial class CCVars
     /// window header button.
     /// </summary>
     public static readonly CVarDef<bool> HonkActionBarLock =
-        CVarDef.Create("honk.action_bar.lock", false, CVar.CLIENTONLY | CVar.ARCHIVE);
+        CVarDef.Create("honk.action_bar.lock", true, CVar.CLIENTONLY | CVar.ARCHIVE);
 
     /// <summary>
     /// Base opacity of the slot background on each action bar button (0.0-1.0).
@@ -68,11 +68,17 @@ public sealed partial class CCVars
         CVarDef.Create("honk.action_bar.button_background_alpha", 150f / 255f, CVar.CLIENTONLY | CVar.ARCHIVE);
 
     /// <summary>
-    /// Serialized emote-to-slot placements persisted across sessions: <c>emoteId=slotIndex</c>
-    /// pairs separated by semicolons, e.g. <c>Wave=3;Scream=5</c>. When the server grants an
-    /// emote action whose proto id is in this map, the client drops it onto the saved slot
-    /// instead of leaving it in the actions menu.
+    /// Saved X coordinate of the action bar in viewport pixels. -1 means use the
+    /// screen's default anchor (current behaviour). Set by the in-game drag handle
+    /// on the bar; clamped to keep the bar inside the viewport.
     /// </summary>
-    public static readonly CVarDef<string> HonkActionBarEmoteSlots =
-        CVarDef.Create("honk.action_bar.emote_slots", string.Empty, CVar.CLIENTONLY | CVar.ARCHIVE);
+    public static readonly CVarDef<float> HonkActionBarPositionX =
+        CVarDef.Create("honk.action_bar.position_x", -1f, CVar.CLIENTONLY | CVar.ARCHIVE);
+
+    /// <summary>
+    /// Saved Y coordinate of the action bar in viewport pixels. -1 means use the
+    /// screen's default anchor (current behaviour).
+    /// </summary>
+    public static readonly CVarDef<float> HonkActionBarPositionY =
+        CVarDef.Create("honk.action_bar.position_y", -1f, CVar.CLIENTONLY | CVar.ARCHIVE);
 }
