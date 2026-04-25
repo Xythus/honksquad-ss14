@@ -252,6 +252,19 @@
         insertOnInteract: false
         # HONK END
         priority: 3 # Higher than drinking priority
+      # HONK START - plushie mascot slot, matches mop bucket whitelist
+      plushie_slot:
+        name: janitorial-trolley-slot-component-slot-name-plushie
+        whitelist:
+          tags:
+          - PlushieCarp
+          - PlushieCarpHolo
+          - PlushieCarpMagi
+          - PlushieSharkBlue
+          - PlushieSharkGrey
+          - PlushieSharkPink
+        priority: 1
+      # HONK END
   - type: Fixtures
     fixtures:
       fix1:
@@ -363,6 +376,97 @@
         whitelist:
           tags:
           - Bucket
+      # HONK START - plushie mascot layers; split per-direction so each can carry its own offset
+      cart_shark_blue_e:
+        whitelist:
+          tags:
+          - PlushieSharkBlue
+        offset: -0.375, 0
+      cart_shark_blue_w:
+        whitelist:
+          tags:
+          - PlushieSharkBlue
+        offset: 0.375, 0
+      cart_shark_blue_ns:
+        whitelist:
+          tags:
+          - PlushieSharkBlue
+      cart_magicarp_e:
+        whitelist:
+          tags:
+          - PlushieCarpMagi
+        offset: -0.25, -0.03125
+      cart_magicarp_w:
+        whitelist:
+          tags:
+          - PlushieCarpMagi
+        offset: 0.25, -0.03125
+      cart_magicarp_ns:
+        whitelist:
+          tags:
+          - PlushieCarpMagi
+        offset: 0, -0.03125
+      cart_shark_pink_e:
+        whitelist:
+          tags:
+          - PlushieSharkPink
+        offset: -0.375, -0.03125
+      cart_shark_pink_w:
+        whitelist:
+          tags:
+          - PlushieSharkPink
+        offset: 0.375, -0.03125
+      cart_shark_pink_ns:
+        whitelist:
+          tags:
+          - PlushieSharkPink
+        offset: 0, -0.03125
+      cart_shark_grey_e:
+        whitelist:
+          tags:
+          - PlushieSharkGrey
+        offset: -0.375, -0.03125
+      cart_shark_grey_w:
+        whitelist:
+          tags:
+          - PlushieSharkGrey
+        offset: 0.375, -0.03125
+      cart_shark_grey_ns:
+        whitelist:
+          tags:
+          - PlushieSharkGrey
+        offset: 0, -0.03125
+      cart_carp_e:
+        whitelist:
+          tags:
+          - PlushieCarp
+        offset: -0.25, -0.03125
+      cart_carp_w:
+        whitelist:
+          tags:
+          - PlushieCarp
+        offset: 0.25, -0.03125
+      cart_carp_ns:
+        whitelist:
+          tags:
+          - PlushieCarp
+        offset: 0, -0.03125
+      cart_holocarp_e:
+        whitelist:
+          tags:
+          - PlushieCarpHolo
+        offset: -0.25, -0.03125
+      cart_holocarp_w:
+        whitelist:
+          tags:
+          - PlushieCarpHolo
+        offset: 0.25, -0.03125
+      cart_holocarp_ns:
+        whitelist:
+          tags:
+          - PlushieCarpHolo
+        offset: 0, -0.03125
+      # HONK END
     sprite: Objects/Specific/Janitorial/janitorial_cart.rsi
   - type: Appearance
   - type: SolutionContainerVisuals
@@ -396,6 +500,9 @@
       wetfloorsign_slot1: !type:ContainerSlot {}
       lightreplacer_slot: !type:ContainerSlot {}
       spraybottle_slot:  !type:ContainerSlot {}
+      # HONK START - plushie mascot slot container
+      plushie_slot: !type:ContainerSlot {}
+      # HONK END
   # HONK START - Empty-hand eject + alt-click radial eject menu
   - type: ItemSlotEjectMenu
   # HONK END
