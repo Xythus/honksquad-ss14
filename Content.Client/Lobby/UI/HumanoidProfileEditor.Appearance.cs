@@ -187,6 +187,22 @@ public sealed partial class HumanoidProfileEditor
         RefreshJobs();
         // In case there's species restrictions for loadouts
         RefreshLoadouts();
+        //HONK START - #634: drop trait preferences whose SpeciesWhitelist excludes
+        // the new species (e.g. Accentless selected on Dwarf, then species changed
+        // to Human). Mirrors RefreshJobs/RefreshLoadouts species pruning above so
+        // the trait isn't carried into a profile where it can't be applied.
+        if (Profile is { } profile)
+        {
+            foreach (var traitId in profile.TraitPreferences.ToList())
+            {
+                if (!_prototypeManager.TryIndex<Content.Shared.Traits.TraitPrototype>(traitId, out var trait))
+                    continue;
+                if (trait.SpeciesWhitelist != null && !trait.SpeciesWhitelist.Contains(newSpecies))
+                    Profile = Profile?.WithoutTraitPreference(traitId, _prototypeManager);
+            }
+        }
+        RefreshTraits();
+        //HONK END
         UpdateSexControls(); // update sex for new species
         UpdateSpeciesGuidebookIcon();
         ReloadPreview();
