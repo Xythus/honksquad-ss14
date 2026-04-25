@@ -63,6 +63,7 @@ public abstract class SharedCarryingSystem : PairedMarkerSystem
         SubscribeLocalEvent<CarrierComponent, CanDropTargetEvent>(OnCanDropTarget);
         SubscribeLocalEvent<CarrierComponent, CarryDoAfterEvent>(OnCarryDoAfter);
         SubscribeLocalEvent<BeingCarriedComponent, CarryInterruptDoAfterEvent>(OnCarryInterruptDoAfter);
+        SubscribeLocalEvent<BeingCarriedComponent, Content.Shared.Pulling.Events.BeingPulledAttemptEvent>(OnCarriedPullAttempt);
         SubscribeLocalEvent<ActiveCarrierComponent, RefreshMovementSpeedModifiersEvent>(OnRefreshMoveSpeed);
         SubscribeLocalEvent<BeingCarriedComponent, UpdateCanMoveEvent>(OnCarriedCanMove);
 
@@ -282,6 +283,19 @@ public abstract class SharedCarryingSystem : PairedMarkerSystem
 
         args.Handled = true;
         InterruptCarry(args.User, uid);
+    }
+
+    /// <summary>
+    /// Block third-party pull attempts on a carried entity. Pull-while-carried races
+    /// with the carry's reparent and drop hooks (the puller's virtual item handles
+    /// don't get fixed up cleanly), so the prying interrupt verb is the supported way
+    /// to intervene. The carrier's own pull-then-carry handoff is already cleared
+    /// during Carry() before BeingCarriedComponent gets attached, so this only blocks
+    /// new pulls that start after the carry is in progress.
+    /// </summary>
+    private void OnCarriedPullAttempt(EntityUid uid, BeingCarriedComponent component, Content.Shared.Pulling.Events.BeingPulledAttemptEvent args)
+    {
+        args.Cancel();
     }
 
     /// <summary>

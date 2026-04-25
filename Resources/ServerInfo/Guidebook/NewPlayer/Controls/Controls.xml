@@ -89,6 +89,8 @@
   - Carrying takes [bold]both hands[/bold] and slows you down.
   - To drop them, use [color=yellow][bold][keybind="Drop"][/bold][/color] or right-click and select [bold]Drop[/bold].
   - You drop them automatically if you get stunned, downed, or go critical. They also get dropped if they recover.
+  - Once they're on your shoulder, nobody else can [color=cyan]pull[/color] them off you.
+  - Bystanders who want them free have to right-click the carried mob and pick [bold]Pry free[/bold]. It takes a moment, stuns you, and drops them.
   <!-- HONK END -->
 
   ## Interactions
