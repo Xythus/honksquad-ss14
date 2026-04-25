@@ -24,6 +24,11 @@ public sealed partial class HumanoidProfileEditor
         TraitsList.RemoveAllChildren();
 
         var traits = _prototypeManager.EnumeratePrototypes<TraitPrototype>().OrderBy(t => Loc.GetString(t.Name)).ToList();
+
+        // HONK START - #634: hide traits whose SpeciesWhitelist excludes the current species (e.g. Accentless on Human).
+        if (Profile?.Species is { } speciesId)
+            traits = traits.Where(t => t.SpeciesWhitelist == null || t.SpeciesWhitelist.Contains(speciesId)).ToList();
+        // HONK END
         TabContainer.SetTabTitle(3, Loc.GetString("humanoid-profile-editor-traits-tab"));
 
         if (traits.Count < 1)
@@ -222,7 +227,9 @@ public sealed partial class HumanoidProfileEditor
             foreach (var traitProto in categoryTraits)
             {
                 var trait = _prototypeManager.Index<TraitPrototype>(traitProto);
-                var selector = new TraitPreferenceSelector(trait);
+                // HONK START - #634: forward species for per-species description override.
+                var selector = new TraitPreferenceSelector(trait, Profile?.Species);
+                // HONK END
 
                 selector.Preference = Profile?.TraitPreferences.Contains(trait.ID) == true;
                 if (selector.Preference)
