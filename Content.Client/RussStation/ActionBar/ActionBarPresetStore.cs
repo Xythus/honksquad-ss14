@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using Robust.Shared.ContentPack;
 using Robust.Shared.Log;
@@ -113,6 +112,7 @@ public sealed class ActionBarPresetStore
         var map = new YamlMappingNode();
         map.Add(SchemaKey, p.SchemaVersion.ToString(CultureInfo.InvariantCulture));
         map.Add("name", p.Name);
+        map.Add("character", p.CharacterName);
         map.Add("rows", p.Rows.ToString(CultureInfo.InvariantCulture));
         map.Add("slotsPerRow", p.SlotsPerRow.ToString(CultureInfo.InvariantCulture));
         map.Add("slotSpacing", p.SlotSpacing.ToString(CultureInfo.InvariantCulture));
@@ -128,6 +128,11 @@ public sealed class ActionBarPresetStore
         foreach (var id in p.SlotProtoIds)
             slots.Add(new YamlScalarNode(id ?? string.Empty));
         map.Add("slots", slots);
+
+        var emotes = new YamlSequenceNode();
+        foreach (var id in p.EmoteIds)
+            emotes.Add(new YamlScalarNode(id ?? string.Empty));
+        map.Add("emotes", emotes);
         return map;
     }
 
@@ -144,6 +149,7 @@ public sealed class ActionBarPresetStore
         {
             SchemaVersion = schema,
             Name = TryGetString(map, "name") ?? string.Empty,
+            CharacterName = TryGetString(map, "character") ?? string.Empty,
             Rows = TryGetInt(map, "rows", out var rows) ? rows : 1,
             SlotsPerRow = TryGetInt(map, "slotsPerRow", out var sr) ? sr : 10,
             SlotSpacing = TryGetInt(map, "slotSpacing", out var sp) ? sp : 0,
@@ -156,10 +162,16 @@ public sealed class ActionBarPresetStore
             PositionY = TryGetFloat(map, "positionY", -1f),
         };
 
-        if (map.Children.TryGetValue(new YamlScalarNode("slots"), out var slotsNode)
-            && slotsNode is YamlSequenceNode slotsSeq)
+        if (TryGetNode(map, "slots") is YamlSequenceNode slotsSeq)
         {
             preset.SlotProtoIds = slotsSeq.Children
+                .OfType<YamlScalarNode>()
+                .Select(s => string.IsNullOrEmpty(s.Value) ? null : s.Value)
+                .ToList();
+        }
+        if (TryGetNode(map, "emotes") is YamlSequenceNode emotesSeq)
+        {
+            preset.EmoteIds = emotesSeq.Children
                 .OfType<YamlScalarNode>()
                 .Select(s => string.IsNullOrEmpty(s.Value) ? null : s.Value)
                 .ToList();
@@ -167,12 +179,21 @@ public sealed class ActionBarPresetStore
         return preset;
     }
 
+    private static YamlNode? TryGetNode(YamlMappingNode map, string key)
+    {
+        // Iterate manually because YamlMappingNode.Children's current return type
+        // (IOrderedDictionary) isn't whitelisted by the engine sandbox; GetEnumerator is.
+        foreach (var pair in map)
+        {
+            if (pair.Key is YamlScalarNode k && k.Value == key)
+                return pair.Value;
+        }
+        return null;
+    }
+
     private static string? TryGetString(YamlMappingNode map, string key)
     {
-        return map.Children.TryGetValue(new YamlScalarNode(key), out var node)
-               && node is YamlScalarNode scalar
-            ? scalar.Value
-            : null;
+        return TryGetNode(map, key) is YamlScalarNode scalar ? scalar.Value : null;
     }
 
     private static bool TryGetInt(YamlMappingNode map, string key, out int value)

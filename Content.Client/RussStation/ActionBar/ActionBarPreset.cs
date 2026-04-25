@@ -8,6 +8,11 @@ public sealed class ActionBarPreset
     public int SchemaVersion { get; set; } = ActionBarPresetSchema.CurrentVersion;
     public string Name { get; set; } = string.Empty;
 
+    /// <summary>Character (humanoid profile) name this preset was saved against. Empty
+    /// means the preset is character-agnostic, which keeps presets saved before the
+    /// character-keyed flow loadable on every character.</summary>
+    public string CharacterName { get; set; } = string.Empty;
+
     public int Rows { get; set; }
     public int SlotsPerRow { get; set; }
     public int SlotSpacing { get; set; }
@@ -23,9 +28,15 @@ public sealed class ActionBarPreset
     /// <summary>Action prototype IDs in slot order. Empty / null entries are blanks
     /// the player intentionally left unbound at save time.</summary>
     public List<string?> SlotProtoIds { get; set; } = new();
+
+    /// <summary>Parallel to <see cref="SlotProtoIds"/>: emote id (e.g. "Wave") for each
+    /// slot that holds an emote action, null otherwise. Emote actions all share the
+    /// same `HonkActionEmote` prototype, so the prototype id can't disambiguate which
+    /// emote sits in which slot; the emote id stored here does.</summary>
+    public List<string?> EmoteIds { get; set; } = new();
 }
 
 public static class ActionBarPresetSchema
 {
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 2;
 }

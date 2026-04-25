@@ -379,6 +379,11 @@ public sealed class ActionUIController : UIController, IOnStateChanged<GameplayS
 
     public void HonkTriggerSlot(int slot) => TriggerAction(slot);
 
+    /// <summary>True once the actions system has linked at least one action for the
+    /// local player. Used by the customization controller to defer auto-loading a
+    /// preset until slot prototypes can actually resolve to action entities.</summary>
+    public bool HonkHasClientActions() => _actionsSystem?.GetClientActions().Any() == true;
+
     /// <summary>Snapshot the bar's current slots as a list of action prototype IDs so a
     /// preset can be replayed later. Empty / unknown slots persist as null entries.</summary>
     public List<string?> HonkGetSlotProtoIds()
@@ -394,10 +399,56 @@ public sealed class ActionUIController : UIController, IOnStateChanged<GameplayS
         return result;
     }
 
+    /// <summary>Parallel to <see cref="HonkGetSlotProtoIds"/>. Emote actions all share the
+    /// `HonkActionEmote` prototype, so the prototype id is ambiguous; the emote id
+    /// (e.g. "Wave") is what disambiguates which emote belongs in which slot.</summary>
+    public List<string?> HonkGetSlotEmoteIds()
+    {
+        var result = new List<string?>(_actions.Count);
+        foreach (var slot in _actions)
+        {
+            string? emote = null;
+            if (slot is { } uid
+                && EntityManager.TryGetComponent<Content.Shared.RussStation.VerbBindings.HonkEmoteActionComponent>(uid, out var tag))
+            {
+                emote = tag.Emote;
+            }
+            result.Add(emote);
+        }
+        return result;
+    }
+
+    /// <summary>Wipe the current slot layout and re-populate from the player's known
+    /// actions in their natural order, the same way a fresh round would fill the bar.
+    /// Used by "Reset to defaults" so the bar comes back populated rather than empty.</summary>
+    public void HonkResetSlots()
+    {
+        if (_actionsSystem == null)
+            return;
+
+        _actions.Clear();
+        _honkLastSlotByProvider.Clear();
+        // Mirror OnActionAdded's gating: emote actions stay in the menu rather than
+        // auto-populating the bar, otherwise "Reset to defaults" floods slots with
+        // the full emote list.
+        foreach (var action in _actionsSystem.GetClientActions())
+        {
+            if (EntityManager.HasComponent<Content.Shared.RussStation.VerbBindings.HonkEmoteActionComponent>(action.Owner))
+                continue;
+            _actions.Add(action.Owner);
+        }
+
+        if (_container != null)
+            _container.SetActionData(_actionsSystem, _actions.ToArray());
+        OnActionsUpdated();
+    }
+
     /// <summary>Replace the bar's slot contents from a preset's prototype-id list.
     /// Slots whose prototype no longer exists in the player's actions are blanked so
-    /// the layout doesn't shift; missing actions are skipped silently.</summary>
-    public void HonkLoadFromPreset(List<string?> protoIds)
+    /// the layout doesn't shift; missing actions are skipped silently. Emote slots
+    /// resolve via the parallel <paramref name="emoteIds"/> list because all emote
+    /// actions share one prototype.</summary>
+    public void HonkLoadFromPreset(List<string?> protoIds, List<string?> emoteIds)
     {
         if (_actionsSystem == null)
             return;
@@ -405,9 +456,18 @@ public sealed class ActionUIController : UIController, IOnStateChanged<GameplayS
         // Build a proto-id -> first-matching-action map from the player's known actions
         // so a slot that asks for "ActionToggleInternals" lands on whichever action has
         // that prototype. First-match keeps duplicate-prototype actions deterministic.
+        // Emote actions are indexed separately by their Emote field (the prototype id
+        // collides for every emote so it can't be the key here).
         var byProto = new Dictionary<string, EntityUid>();
+        var byEmote = new Dictionary<string, EntityUid>();
         foreach (var action in _actionsSystem.GetClientActions())
         {
+            if (EntityManager.TryGetComponent<Content.Shared.RussStation.VerbBindings.HonkEmoteActionComponent>(action.Owner, out var tag))
+            {
+                if (!byEmote.ContainsKey(tag.Emote))
+                    byEmote[tag.Emote] = action.Owner;
+                continue;
+            }
             if (!EntityManager.TryGetComponent<MetaDataComponent>(action.Owner, out var meta))
                 continue;
             var id = meta.EntityPrototype?.ID;
@@ -418,12 +478,17 @@ public sealed class ActionUIController : UIController, IOnStateChanged<GameplayS
 
         _actions.Clear();
         _honkLastSlotByProvider.Clear();
-        foreach (var id in protoIds)
+        for (var i = 0; i < protoIds.Count; i++)
         {
-            if (id != null && byProto.TryGetValue(id, out var uid))
-                _actions.Add(uid);
-            else
-                _actions.Add(null);
+            var protoId = protoIds[i];
+            var emoteId = i < emoteIds.Count ? emoteIds[i] : null;
+
+            EntityUid? resolved = null;
+            if (emoteId != null && byEmote.TryGetValue(emoteId, out var emoteUid))
+                resolved = emoteUid;
+            else if (protoId != null && byProto.TryGetValue(protoId, out var protoUid))
+                resolved = protoUid;
+            _actions.Add(resolved);
         }
 
         if (_container != null)
@@ -593,20 +658,10 @@ public sealed class ActionUIController : UIController, IOnStateChanged<GameplayS
             if (_container?.TryGetButtonIndex(button, out position) ?? false)
             {
                 //HONK START - keep _actions sparse so a cleared middle slot doesn't shift later actions
-                // left, and forget any emote-slot memory for whatever was in this slot so it doesn't
-                // come back on reconnect.
+                // left. Emote slot persistence now lives in ActionBarPreset, so a drag-clear is
+                // session-local until the player saves a new preset.
                 if (position >= 0 && position < _actions.Count)
                 {
-                    if (_actions[position] is { } clearedAction
-                        && EntityManager.TryGetComponent<Content.Shared.RussStation.VerbBindings.HonkEmoteActionComponent>(clearedAction, out var clearedEmote))
-                    {
-                        // Only forget the saved slot if the emote hasn't already been moved to a
-                        // different slot in this same drag (DragAction does place-then-clear, so the
-                        // new slot is already in the map by the time we reach the clear).
-                        var custom = UIManager.GetUIController<Content.Client.RussStation.ActionBar.ActionBarCustomizationController>();
-                        if (custom.TryGetSavedEmoteSlot(clearedEmote.Emote, out var savedPos) && savedPos == position)
-                            custom.HonkRememberEmoteSlot(clearedEmote.Emote, null);
-                    }
                     _actions[position] = null;
                     while (_actions.Count > 0 && _actions[^1] == null)
                         _actions.RemoveAt(_actions.Count - 1);
@@ -619,19 +674,15 @@ public sealed class ActionUIController : UIController, IOnStateChanged<GameplayS
             _container.TryGetButtonIndex(button, out position))
         {
             //HONK START - pad with nulls so an action dropped on slot N lands at slot N, not at Count,
-            // update provider->slot memory so re-acquiring the item later restores to the new slot,
-            // and persist emote placements so disconnect+reconnect restores the same layout.
+            // and update provider->slot memory so re-acquiring the item later restores to the new
+            // slot. Emote placements ride along inside ActionBarPreset; mid-round drags are session-
+            // local until the player saves a new preset.
             while (_actions.Count < position)
                 _actions.Add(null);
             if (_actionsSystem.GetAction(actionId.Value) is {} placedAction
                 && placedAction.Comp.Container is {} placedProvider)
             {
                 _honkLastSlotByProvider[placedProvider] = position;
-            }
-            if (EntityManager.TryGetComponent<Content.Shared.RussStation.VerbBindings.HonkEmoteActionComponent>(actionId.Value, out var placedEmote))
-            {
-                UIManager.GetUIController<Content.Client.RussStation.ActionBar.ActionBarCustomizationController>()
-                    .HonkRememberEmoteSlot(placedEmote.Emote, position);
             }
             //HONK END
             if (position >= _actions.Count)
@@ -903,8 +954,13 @@ public sealed class ActionUIController : UIController, IOnStateChanged<GameplayS
 
         _actionsSystem?.LinkAllActions();
 
-        //HONK START - re-apply after the initial action link rebuilds the container children
-        UIManager.GetUIController<Content.Client.RussStation.ActionBar.ActionBarCustomizationController>().HonkOnContainerReady();
+        //HONK START - re-apply layout after the initial action link rebuilds the container
+        // children, then run the preset auto-load. Auto-load has to wait until after
+        // LinkAllActions because that call appends every linked action to _actions via
+        // OnActionAdded, which would overwrite a preset applied earlier.
+        var honk = UIManager.GetUIController<Content.Client.RussStation.ActionBar.ActionBarCustomizationController>();
+        honk.HonkOnContainerReady();
+        honk.HonkAfterInitialLink();
         //HONK END
     }
 
