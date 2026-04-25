@@ -155,7 +155,13 @@ public sealed class MetabolizerSystem : EntitySystem
         var rand = SharedRandomExtensions.PredictedRandom(_gameTiming, GetNetEntity(ent), GetNetEntity(solutionOwner));
         rand.Shuffle(list);
 
-        var isDead = _mobStateSystem.IsDead(solutionOwner.Value);
+        // HONK START - resolve isDead against the body when the metabolizer is on an organ (#491).
+        // Upstream queries isDead on solutionOwner, which for per-organ solutions (e.g. the stomach's
+        // Digestion stage) is the organ itself and lacks MobState, so the check always returned false
+        // on a corpse. Falling back to OrganComponent.Body makes the dead guard actually fire.
+        var deadCheckTarget = ent.Comp2?.Body ?? solutionOwner.Value;
+        var isDead = _mobStateSystem.IsDead(deadCheckTarget);
+        // HONK END
 
         int reagents = 0;
         foreach (var (reagent, quantity) in list)
@@ -169,6 +175,11 @@ public sealed class MetabolizerSystem : EntitySystem
 
             if (proto.Metabolisms is null || !proto.Metabolisms.Metabolisms.TryGetValue(stage, out var entry))
             {
+                // HONK START - freeze generic stomach transfer on corpses so revival chems don't drain (#491)
+                if (isDead && !proto.WorksOnTheDead)
+                    continue;
+                // HONK END
+
                 var mostToTransfer = FixedPoint2.Clamp(solutionData.TransferRate, 0, quantity);
 
                 if (transferSolution is not null)
