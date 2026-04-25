@@ -152,7 +152,11 @@ public sealed partial class ZombieSystem
         if (TryComp<ZombieAccentOverrideComponent>(target, out var accent))
             accentType = accent.Accent;
 
-        EnsureComp<ReplacementAccentComponent>(target).Accent = accentType;
+        // HONK START - #634: ReplacementAccent is a list now; zombification overwrites any prior voice.
+        var rep = EnsureComp<ReplacementAccentComponent>(target);
+        rep.Accents.Clear();
+        rep.Accents.Add(accentType);
+        // HONK END
 
         //This is needed for stupid entities that fuck up combat mode component
         //in an attempt to make an entity not attack. This is the easiest way to do it.
