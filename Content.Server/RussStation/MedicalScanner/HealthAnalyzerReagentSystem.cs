@@ -42,7 +42,7 @@ namespace Content.Server.RussStation.MedicalScanner;
 /// on <see cref="HealthAnalyzerDoAfterEvent"/> to push reagent state (bloodstream /
 /// metabolites / stomachs / lungs) alongside the Health tab.
 /// </summary>
-public sealed class HealthAnalyzerReagentSystem : EntitySystem
+public sealed class HealthAnalyzerReagentSystem : SharedHealthAnalyzerReagentSystem
 {
     [Dependency] private readonly IGameTiming _timing = default!;
     [Dependency] private readonly IPrototypeManager _proto = default!;
