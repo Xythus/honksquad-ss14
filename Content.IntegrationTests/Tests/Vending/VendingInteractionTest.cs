@@ -108,8 +108,8 @@ public sealed class VendingInteractionTest : InteractionTest
         //HONK START - Give test mob funds so the payment system doesn't block the vend
         await Server.WaitPost(() =>
         {
-            var comp = SEntMan.EnsureComponent<Content.Shared.RussStation.Economy.Components.PlayerBalanceComponent>(SPlayer);
-            comp.Balance = 99999;
+            var comp = SEntMan.EnsureComponent<Content.Server.RussStation.Economy.PlayerBalanceComponent>(SPlayer);
+            SEntMan.System<Content.Server.RussStation.Economy.PlayerBalanceSystem>().SetBalance(SPlayer, 99999, comp);
         });
         //HONK END
 

@@ -1,12 +1,13 @@
-using Robust.Shared.GameObjects;
+using Content.Shared.RussStation.Economy;
 
-namespace Content.Shared.RussStation.Economy.Components;
+namespace Content.Server.RussStation.Economy;
 
 /// <summary>
 /// Tracks a player's speso balance for the current round.
 /// Added to the player mob on spawn.
 /// </summary>
 [RegisterComponent]
+[Access(typeof(PlayerBalanceSystem), typeof(PayrollSystem))]
 public sealed partial class PlayerBalanceComponent : Component
 {
     [DataField]
