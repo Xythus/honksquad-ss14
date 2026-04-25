@@ -11,6 +11,7 @@ namespace Content.Shared.RussStation.Light;
 ///     Players can spend points to print new bulbs via a radial menu.
 /// </summary>
 [RegisterComponent, NetworkedComponent, AutoGenerateComponentState]
+[Access(typeof(SharedLightReplacerRecyclerSystem))]
 public sealed partial class LightReplacerRecyclerComponent : Component
 {
     /// <summary>
