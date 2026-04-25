@@ -1,6 +1,10 @@
 carrying-verb-carry = Fireman carry
 carrying-verb-drop = Drop
+carrying-verb-interrupt = Pry free
 carrying-start-carrier = You hoist {$target} over your shoulder.
 carrying-start-carried = {$carrier} hoists you over their shoulder!
 carrying-drop-carrier = You drop {$target}.
 carrying-drop-carried = {$carrier} drops you!
+carrying-interrupt-user = You pry {$target} free from {$carrier}.
+carrying-interrupt-carrier = {$user} pries {$target} out of your grip!
+carrying-interrupt-carried = {$user} pries you free from {$carrier}.

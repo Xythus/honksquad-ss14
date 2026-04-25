@@ -42,6 +42,7 @@ public abstract class SharedCarryingSystem : PairedMarkerSystem
     [Dependency] private readonly SharedJointSystem _joints = default!;
     [Dependency] private readonly SharedPhysicsSystem _physics = default!;
     [Dependency] private readonly SharedPopupSystem _popup = default!;
+    [Dependency] private readonly SharedStunSystem _stun = default!;
     [Dependency] private readonly SharedTransformSystem _transform = default!;
     [Dependency] private readonly SharedVirtualItemSystem _virtualItem = default!;
     [Dependency] private readonly StandingStateSystem _standing = default!;
@@ -55,12 +56,14 @@ public abstract class SharedCarryingSystem : PairedMarkerSystem
         base.Initialize();
 
         SubscribeLocalEvent<CarriableComponent, GetVerbsEvent<InteractionVerb>>(AddCarryVerb);
-        SubscribeLocalEvent<BeingCarriedComponent, GetVerbsEvent<InteractionVerb>>(AddDropVerb);
+        SubscribeLocalEvent<BeingCarriedComponent, GetVerbsEvent<InteractionVerb>>(AddCarriedVerbs);
 
         SubscribeLocalEvent<CarriableComponent, DragDropDraggedEvent>(OnDragDropDragged);
         SubscribeLocalEvent<CarriableComponent, CanDropDraggedEvent>(OnCanDropDragged);
         SubscribeLocalEvent<CarrierComponent, CanDropTargetEvent>(OnCanDropTarget);
         SubscribeLocalEvent<CarrierComponent, CarryDoAfterEvent>(OnCarryDoAfter);
+        SubscribeLocalEvent<BeingCarriedComponent, CarryInterruptDoAfterEvent>(OnCarryInterruptDoAfter);
+        SubscribeLocalEvent<BeingCarriedComponent, Content.Shared.Pulling.Events.BeingPulledAttemptEvent>(OnCarriedPullAttempt);
         SubscribeLocalEvent<ActiveCarrierComponent, RefreshMovementSpeedModifiersEvent>(OnRefreshMoveSpeed);
         SubscribeLocalEvent<BeingCarriedComponent, UpdateCanMoveEvent>(OnCarriedCanMove);
 
@@ -113,16 +116,37 @@ public abstract class SharedCarryingSystem : PairedMarkerSystem
         });
     }
 
-    private void AddDropVerb(EntityUid uid, BeingCarriedComponent component, GetVerbsEvent<InteractionVerb> args)
+    private void AddCarriedVerbs(EntityUid uid, BeingCarriedComponent component, GetVerbsEvent<InteractionVerb> args)
     {
-        if (component.Carrier != args.User)
+        if (args.User == component.Carrier)
+        {
+            args.Verbs.Add(new InteractionVerb
+            {
+                Text = Loc.GetString("carrying-verb-drop"),
+                Icon = new SpriteSpecifier.Texture(new ResPath("/Textures/Interface/VerbIcons/drop.svg.192dpi.png")),
+                Act = () => Drop(args.User),
+            });
+            return;
+        }
+
+        if (!args.CanAccess || !args.CanInteract)
+            return;
+
+        // Carried is the target itself; only third parties get the interrupt.
+        if (args.User == uid)
+            return;
+
+        if (!TryComp<CarriableComponent>(uid, out var carriable))
+            return;
+
+        if (!CanInterruptCarry(args.User, carriable))
             return;
 
         args.Verbs.Add(new InteractionVerb
         {
-            Text = Loc.GetString("carrying-verb-drop"),
+            Text = Loc.GetString("carrying-verb-interrupt"),
             Icon = new SpriteSpecifier.Texture(new ResPath("/Textures/Interface/VerbIcons/drop.svg.192dpi.png")),
-            Act = () => Drop(args.User),
+            Act = () => StartInterruptDoAfter(args.User, uid, carriable),
         });
     }
 
@@ -224,6 +248,86 @@ public abstract class SharedCarryingSystem : PairedMarkerSystem
 
         args.Handled = true;
         Carry(uid, args.Target.Value);
+    }
+
+    private bool CanInterruptCarry(EntityUid user, CarriableComponent carriable)
+    {
+        if (_standing.IsDown(user) || _mobState.IsIncapacitated(user))
+            return false;
+
+        if (TryComp<BuckleComponent>(user, out var buckle) && buckle.Buckled)
+            return false;
+
+        if (carriable.InterruptRequiresFreeHand && _hands.CountFreeHands(user) < 1)
+            return false;
+
+        return true;
+    }
+
+    private void StartInterruptDoAfter(EntityUid user, EntityUid target, CarriableComponent carriable)
+    {
+        var doAfterArgs = new DoAfterArgs(EntityManager, user, carriable.InterruptDuration, new CarryInterruptDoAfterEvent(), target, target: target)
+        {
+            BreakOnMove = true,
+            BreakOnDamage = true,
+            NeedHand = carriable.InterruptRequiresFreeHand,
+        };
+
+        _doAfter.TryStartDoAfter(doAfterArgs);
+    }
+
+    private void OnCarryInterruptDoAfter(EntityUid uid, BeingCarriedComponent component, CarryInterruptDoAfterEvent args)
+    {
+        if (args.Handled || args.Cancelled || args.User == uid || args.User == component.Carrier)
+            return;
+
+        args.Handled = true;
+        InterruptCarry(args.User, uid);
+    }
+
+    /// <summary>
+    /// Block third-party pull attempts on a carried entity. Pull-while-carried races
+    /// with the carry's reparent and drop hooks (the puller's virtual item handles
+    /// don't get fixed up cleanly), so the prying interrupt verb is the supported way
+    /// to intervene. The carrier's own pull-then-carry handoff is already cleared
+    /// during Carry() before BeingCarriedComponent gets attached, so this only blocks
+    /// new pulls that start after the carry is in progress.
+    /// </summary>
+    private void OnCarriedPullAttempt(EntityUid uid, BeingCarriedComponent component, Content.Shared.Pulling.Events.BeingPulledAttemptEvent args)
+    {
+        args.Cancel();
+    }
+
+    /// <summary>
+    /// Third-party interrupt completion path: ends the carry on
+    /// <paramref name="target"/>, stuns the carrier, and plays popups.
+    /// No-ops silently if the carry ended (or swapped carriers) between
+    /// DoAfter start and completion. Public so tests can exercise the
+    /// completion outcome without running the full DoAfter.
+    /// </summary>
+    public void InterruptCarry(EntityUid user, EntityUid target)
+    {
+        if (!TryComp<BeingCarriedComponent>(target, out var being))
+            return;
+
+        var carrier = being.Carrier;
+        if (!HasComp<ActiveCarrierComponent>(carrier))
+            return;
+
+        if (TryComp<CarriableComponent>(target, out var carriable))
+            _stun.TryUpdateStunDuration(carrier, carriable.InterruptStunDuration);
+
+        Drop(carrier);
+
+        _popup.PopupPredicted(
+            Loc.GetString("carrying-interrupt-user", ("target", target), ("carrier", carrier)),
+            Loc.GetString("carrying-interrupt-carrier", ("user", user), ("target", target)),
+            user,
+            user);
+        _popup.PopupEntity(
+            Loc.GetString("carrying-interrupt-carried", ("user", user), ("carrier", carrier)),
+            target,
+            target);
     }
 
     /// <summary>

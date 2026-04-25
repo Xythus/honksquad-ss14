@@ -12,6 +12,10 @@ public static class CarryingConstants
 
     public static readonly TimeSpan CarryDoAfterDuration = TimeSpan.FromSeconds(3);
 
+    public static readonly TimeSpan DefaultInterruptDuration = TimeSpan.FromSeconds(3);
+
+    public static readonly TimeSpan DefaultInterruptStunDuration = TimeSpan.FromSeconds(1.5);
+
     /// <summary>
     /// Horizontal component of the carried-entity visual offset. The offset lives
     /// entirely on the Y axis; X stays at the carrier's origin.
