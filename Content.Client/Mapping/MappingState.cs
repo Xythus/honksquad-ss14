@@ -106,7 +106,8 @@ public sealed class MappingState : GameplayStateBase
         Screen.DecalSystem = _decal;
         Screen.Prototypes.SearchBar.OnTextChanged += OnSearch;
         Screen.Prototypes.CollapseAllButton.OnPressed += OnCollapseAll;
-        //HONK - ClearSearchButton removed from XAML; right-click search box to clear
+        //HONK START - ClearSearchButton removed from XAML; right-click search box to clear
+        //HONK END
         Screen.Prototypes.GetPrototypeData += OnGetData;
         Screen.Prototypes.SelectionChanged += OnSelected;
         Screen.Prototypes.CollapseToggled += OnCollapseToggled;
@@ -165,7 +166,8 @@ public sealed class MappingState : GameplayStateBase
 
         Screen.Prototypes.SearchBar.OnTextChanged -= OnSearch;
         Screen.Prototypes.CollapseAllButton.OnPressed -= OnCollapseAll;
-        //HONK - ClearSearchButton removed from XAML; right-click search box to clear
+        //HONK START - ClearSearchButton removed from XAML; right-click search box to clear
+        //HONK END
         Screen.Prototypes.GetPrototypeData -= OnGetData;
         Screen.Prototypes.SelectionChanged -= OnSelected;
         Screen.Prototypes.CollapseToggled -= OnCollapseToggled;

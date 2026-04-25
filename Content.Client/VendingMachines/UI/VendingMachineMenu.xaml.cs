@@ -194,7 +194,9 @@ namespace Content.Client.VendingMachines.UI
                     continue;
                 var amount = entry.Amount;
                 // Could be better? Problem is all inventory entries get squashed.
+                //HONK START - pass protoId so GetItemText can look up the price
                 var text = GetItemText(dummy, amount, proto);
+                //HONK END
 
                 //HONK START - Keep _amounts and list data in sync so that ListContainer
                 // virtualizing a row out and back in rebuilds it with the correct
@@ -212,7 +214,9 @@ namespace Content.Client.VendingMachines.UI
             }
         }
 
+        //HONK START - added protoId param to enable price lookup below
         private string GetItemText(EntityUid dummy, uint amount, string? protoId = null)
+        //HONK END
         {
             var itemName = Identity.Name(dummy, _entityManager);
             //HONK START - Show item price

@@ -86,7 +86,9 @@ public sealed partial class HealthAnalyzerControl : BoxContainer
         var name = new FormattedMessage();
         name.PushColor(Color.White);
         name.AddText(_entityManager.HasComponent<MetaDataComponent>(target.Value)
+            //HONK START - pass viewer to Identity.Name so masks/identity-hiding respect the local player
             ? Identity.Name(target.Value, _entityManager, _player.LocalEntity)
+            //HONK END
             : Loc.GetString("health-analyzer-window-entity-unknown-text"));
         NameLabel.SetMessage(name);
 
