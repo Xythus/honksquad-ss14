@@ -1,3 +1,4 @@
+using Content.Shared.RussStation.Botany;
 using Robust.Shared.Audio;
 using Robust.Shared.Serialization.TypeSerializers.Implementations.Custom;
 
@@ -7,7 +8,7 @@ namespace Content.Shared.RussStation.Botany.Components;
 public sealed partial class PlantAnalyzerComponent : Component
 {
     [DataField]
-    public TimeSpan ScanDelay = TimeSpan.FromSeconds(0.8);
+    public TimeSpan ScanDelay = TimeSpan.FromSeconds(PlantAnalyzerConstants.ScanDelaySeconds);
 
     [DataField]
     public SoundSpecifier? ScanningBeginSound;
@@ -25,7 +26,7 @@ public sealed partial class PlantAnalyzerComponent : Component
     /// The delay between UI updates while scanning.
     /// </summary>
     [DataField]
-    public TimeSpan UpdateInterval = TimeSpan.FromSeconds(1);
+    public TimeSpan UpdateInterval = TimeSpan.FromSeconds(PlantAnalyzerConstants.UpdateIntervalSeconds);
 
     /// <summary>
     /// When the next periodic update should be sent.
