@@ -8,13 +8,30 @@
   description: trait-accentless-desc
   category: SpeechTraits
   cost: 2
+  # HONK START - #634: species-aware Accentless. Per-species strip lists instead of one flat list.
+  speciesWhitelist: [ Reptilian, Moth, Dwarf, Skeleton ]
+  descriptionOverrides:
+    Reptilian: trait-accentless-desc-reptilian
+    Moth: trait-accentless-desc-moth
+    Dwarf: trait-accentless-desc-dwarf
+    Skeleton: trait-accentless-desc-skeleton
+  # HONK END
   components:
   - type: Accentless
-    removes:
-    - type: LizardAccent
-    - type: MothAccent
-    - type: ReplacementAccent
-      accent: scottish
+    # HONK START - #634
+    speciesEffects:
+      Reptilian:
+        strips:
+        - type: LizardAccent
+      Moth:
+        strips:
+        - type: MothAccent
+      Dwarf:
+        stripsReplacementAccents: [ scottish ]
+      Skeleton:
+        strips:
+        - type: SkeletonAccent
+    # HONK END
 
 # 1 Cost
 

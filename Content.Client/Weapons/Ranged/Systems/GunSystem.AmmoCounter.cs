@@ -149,9 +149,9 @@ public sealed partial class GunSystem
 
         public void Update(int count, int max)
         {
-            _ammoCount.Visible = true;
-
-            _ammoCount.Text = $"x{count:00}";
+            //HONK START - hide the raw round count label; bullet render already conveys quantity
+            _ammoCount.Visible = false;
+            //HONK END
 
             _bullets.Capacity = max;
             _bullets.Count = count;
@@ -233,7 +233,9 @@ public sealed partial class GunSystem
 
             _bulletRender.Visible = true;
             _noMagazineLabel.Visible = false;
-            _ammoCount.Visible = true;
+            //HONK START - hide the raw round count label; bullet render already conveys quantity
+            _ammoCount.Visible = false;
+            //HONK END
 
             _bulletRender.Count = count;
             _bulletRender.Capacity = capacity;
@@ -244,8 +246,8 @@ public sealed partial class GunSystem
                 > 15 => BulletRender.BulletType.Normal,
                 _ => BulletRender.BulletType.Large
             };
-
-            _ammoCount.Text = $"x{count:00}";
+            //HONK START - upstream set `_ammoCount.Text = $"x{count:00}";` here; dropped alongside Visible=false above
+            //HONK END
         }
 
         public void PlayAlarmAnimation(Animation animation)

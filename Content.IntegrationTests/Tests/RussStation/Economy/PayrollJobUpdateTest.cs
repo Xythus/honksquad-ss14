@@ -4,7 +4,6 @@ using Content.Shared.Mind;
 using Content.Shared.Mind.Components;
 using Content.Shared.Roles;
 using Content.Shared.Roles.Jobs;
-using Content.Shared.RussStation.Economy.Components;
 using Robust.Shared.GameObjects;
 using Robust.Shared.Map;
 
@@ -34,7 +33,7 @@ public sealed class PayrollJobUpdateTest : GameTest
             // Create mob with balance component, initial job is Passenger.
             var mob = entMan.SpawnEntity(null, new MapCoordinates());
             var balance = entMan.AddComponent<PlayerBalanceComponent>(mob);
-            balance.JobId = "Passenger";
+            entMan.System<PlayerBalanceSystem>().SetJobId(mob, "Passenger", balance);
             entMan.AddComponent<MindContainerComponent>(mob);
 
             // Create a mind and attach it to the mob.
@@ -68,7 +67,7 @@ public sealed class PayrollJobUpdateTest : GameTest
 
             var mob = entMan.SpawnEntity(null, new MapCoordinates());
             var balance = entMan.AddComponent<PlayerBalanceComponent>(mob);
-            balance.JobId = "StationEngineer";
+            entMan.System<PlayerBalanceSystem>().SetJobId(mob, "StationEngineer", balance);
             entMan.AddComponent<MindContainerComponent>(mob);
 
             var mindId = mindSystem.CreateMind(null).Owner;

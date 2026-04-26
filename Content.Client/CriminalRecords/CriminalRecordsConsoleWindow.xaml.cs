@@ -51,7 +51,8 @@ public sealed partial class CriminalRecordsConsoleWindow : FancyWindow
 
     private DialogWindow? _reasonDialog;
 
-    private StationRecordFilterType _currentFilterType;
+    //HONK START - upstream had `private StationRecordFilterType _currentFilterType;` here; managed by shared filter widget
+    //HONK END
 
     private SecurityStatus _currentCrewListFilter;
 
@@ -68,16 +69,19 @@ public sealed partial class CriminalRecordsConsoleWindow : FancyWindow
         _spriteSystem = _entManager.System<SpriteSystem>();
 
         _maxLength = maxLength;
-        _currentFilterType = StationRecordFilterType.Name;
+        //HONK START - upstream initialized `_currentFilterType = StationRecordFilterType.Name;` here
+        //HONK END
 
         _currentCrewListFilter = SecurityStatus.None;
 
         OpenCentered();
 
-        foreach (var item in Enum.GetValues<StationRecordFilterType>())
-        {
-            FilterType.AddItem(GetTypeFilterLocals(item), (int)item);
-        }
+        //HONK START - swap OptionButton + LineEdit row for shared live-filter widget
+        SearchBar.SetPlaceholder(Loc.GetString("criminal-records-filter-placeholder"));
+        SearchBar.PopulateTypes(
+            Enum.GetValues<StationRecordFilterType>().Select(t => ((int)t, GetTypeFilterLocals(t))),
+            (int)StationRecordFilterType.Name);
+        //HONK END
 
         foreach (var status in Enum.GetValues<SecurityStatus>())
         {
@@ -105,16 +109,8 @@ public sealed partial class CriminalRecordsConsoleWindow : FancyWindow
             OnKeySelected?.Invoke(null);
         };
 
-        FilterType.OnItemSelected += eventArgs =>
-        {
-            var type = (StationRecordFilterType)eventArgs.Id;
-
-            if (_currentFilterType != type)
-            {
-                _currentFilterType = type;
-                FilterListingOfRecords(FilterText.Text);
-            }
-        };
+        //HONK START - upstream `FilterType.OnItemSelected` block lived here; replaced by SearchBar.OnFilterChanged below
+        //HONK END
 
         //Select Status to filter crew
         CrewListFilter.OnItemSelected += eventArgs =>
@@ -130,10 +126,9 @@ public sealed partial class CriminalRecordsConsoleWindow : FancyWindow
             }
         };
 
-        FilterText.OnTextEntered += args =>
-        {
-            FilterListingOfRecords(args.Text);
-        };
+        //HONK START - single subscription covers both type and text changes
+        SearchBar.OnFilterChanged += args => FilterListingOfRecords(args.Text);
+        //HONK END
 
         StatusOptionButton.OnItemSelected += args =>
         {
@@ -154,18 +149,10 @@ public sealed partial class CriminalRecordsConsoleWindow : FancyWindow
 
     public void UpdateState(CriminalRecordsConsoleState state)
     {
+        //HONK START - shared search bar mirrors filter state
         if (state.Filter != null)
-        {
-            if (state.Filter.Type != _currentFilterType)
-            {
-                _currentFilterType = state.Filter.Type;
-            }
-
-            if (state.Filter.Value != FilterText.Text)
-            {
-                FilterText.Text = state.Filter.Value;
-            }
-        }
+            SearchBar.ApplyFilterState((int)state.Filter.Type, state.Filter.Value);
+        //HONK END
 
         if (state.FilterStatus != _currentCrewListFilter)
         {
@@ -173,7 +160,8 @@ public sealed partial class CriminalRecordsConsoleWindow : FancyWindow
         }
 
         _selectedKey = state.SelectedKey;
-        FilterType.SelectId((int)_currentFilterType);
+        //HONK START - upstream had `FilterType.SelectId((int)_currentFilterType);` here; SearchBar widget owns the type now
+        //HONK END
         CrewListFilter.SelectId((int)_currentCrewListFilter);
         NoRecords.Visible = state.RecordListing == null || state.RecordListing.Count == 0;
         PopulateRecordListing(state.RecordListing);
@@ -271,7 +259,9 @@ public sealed partial class CriminalRecordsConsoleWindow : FancyWindow
 
     private void FilterListingOfRecords(string text = "")
     {
-        OnFiltersChanged?.Invoke(_currentFilterType, text);
+        //HONK START - SearchBar.SelectedTypeId replaces upstream _currentFilterType field
+        OnFiltersChanged?.Invoke((StationRecordFilterType)SearchBar.SelectedTypeId, text);
+        //HONK END
     }
 
     private void SetStatus(SecurityStatus status)

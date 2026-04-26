@@ -14,7 +14,16 @@
             <LineEdit Name="SearchBar" Access="Public" StyleClasses="actionSearchBox" HorizontalExpand="True"
                       PlaceHolder="{Loc ui-actionmenu-search-bar-placeholder-text}"/>
         </BoxContainer>
-        <Button Name="ClearButton" Access="Public" Text="{Loc ui-actionmenu-clear-button}"/>
+        <!-- HONK START - ClearButton removed (right-click the search box), plus fork toggles
+             for auto-add-new-actions and a Presets button that opens the preset/lock window
+             (#604), and FilterContainer hosts the inline HonkFilterPanel body when expanded -->
+        <BoxContainer Orientation="Horizontal" SeparationOverride="8">
+            <CheckBox Name="AutoAddButton" Access="Public" Text="{Loc ui-actionmenu-auto-add-button}"/>
+            <Control HorizontalExpand="True"/>
+            <Button Name="PresetsButton" Access="Public" Text="{Loc ui-actionmenu-presets-button}"/>
+        </BoxContainer>
+        <BoxContainer Name="FilterContainer" Access="Public" Orientation="Vertical"/>
+        <!-- HONK END -->
         <Label Name="FilterLabel" Access="Public"/>
         <ScrollContainer VerticalExpand="True" HorizontalExpand="True">
             <GridContainer Name="ResultsGrid" Access="Public" MaxGridWidth="300"/>

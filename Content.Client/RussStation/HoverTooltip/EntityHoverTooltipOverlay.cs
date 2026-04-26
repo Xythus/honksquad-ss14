@@ -19,9 +19,8 @@ public sealed class EntityHoverTooltipOverlay : Overlay
     public Vector2 ScreenPosition;
     public bool Visible;
 
-    private const float Padding = 4f;
-    private static readonly Vector2 CursorOffset = new(16f, 16f);
-    private static readonly Color BackgroundColor = Color.Black.WithAlpha(0.65f);
+    private static readonly Vector2 CursorOffset = new(HoverTooltipConstants.CursorOffsetX, HoverTooltipConstants.CursorOffsetY);
+    private static readonly Color BackgroundColor = Color.Black.WithAlpha(HoverTooltipConstants.BackgroundAlpha);
 
     public EntityHoverTooltipOverlay(IResourceCache resourceCache)
     {
@@ -31,12 +30,12 @@ public sealed class EntityHoverTooltipOverlay : Overlay
 
         if (_fontManager != null)
         {
-            _font = _fontManager.GetCurrentFont(12);
-            _fontManager.FontsChanged += () => _font = _fontManager.GetCurrentFont(12);
+            _font = _fontManager.GetCurrentFont(HoverTooltipConstants.TooltipFontSize);
+            _fontManager.FontsChanged += () => _font = _fontManager.GetCurrentFont(HoverTooltipConstants.TooltipFontSize);
         }
         else
         {
-            _font = resourceCache.GetFont("/Fonts/NotoSans/NotoSans-Regular.ttf", 12);
+            _font = resourceCache.GetFont("/Fonts/NotoSans/NotoSans-Regular.ttf", HoverTooltipConstants.TooltipFontSize);
         }
         // HONK END
     }
@@ -52,12 +51,12 @@ public sealed class EntityHoverTooltipOverlay : Overlay
         handle.SetTransform(Matrix3x2.Identity);
 
         var pos = ScreenPosition + CursorOffset;
-        var dimensions = handle.GetDimensions(_font, TooltipText!, 1f);
+        var dimensions = handle.GetDimensions(_font, TooltipText!, HoverTooltipConstants.TooltipTextScale);
 
-        var bgPos = pos - new Vector2(Padding, Padding);
-        var bgSize = dimensions + new Vector2(Padding * 2, Padding * 2);
+        var bgPos = pos - new Vector2(HoverTooltipConstants.BackgroundPaddingX, HoverTooltipConstants.BackgroundPaddingY);
+        var bgSize = dimensions + new Vector2(HoverTooltipConstants.BackgroundPaddingX * HoverTooltipConstants.BackgroundPaddingBothSidesMultiplier, HoverTooltipConstants.BackgroundPaddingY * HoverTooltipConstants.BackgroundPaddingBothSidesMultiplier);
         handle.DrawRect(UIBox2.FromDimensions(bgPos, bgSize), BackgroundColor);
 
-        handle.DrawString(_font, pos, TooltipText!, 1f, Color.White);
+        handle.DrawString(_font, pos, TooltipText!, HoverTooltipConstants.TooltipTextScale, Color.White);
     }
 }

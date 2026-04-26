@@ -25,7 +25,7 @@ FORK_OWNED = re.compile(
 
 HONK_START = re.compile(r"HONK\s*START", re.IGNORECASE)
 HONK_END = re.compile(r"HONK\s*END", re.IGNORECASE)
-HONK_LINE = re.compile(r"//\s*HONK\b|#\s*HONK\b", re.IGNORECASE)
+HONK_LINE = re.compile(r"//\s*HONK\b|#\s*HONK\b")
 
 DRIFT_CATEGORIES = ("REFORMAT-ONLY", "MIXED", "CONTENT-NO-HONK")
 
@@ -127,6 +127,150 @@ def drift_lines(fork_text: str, reference_text: str) -> set[str]:
     fork_set = {ln for ln in fork_norm.split("\n") if ln}
     reference_set = {ln for ln in reference_norm.split("\n") if ln}
     return fork_set - reference_set
+
+
+def _fork_line_in_honk(fork_text: str) -> list[bool]:
+    """For each fork line (0-indexed), whether it sits inside a HONK block
+    (including the START/END marker lines themselves, which are treated as
+    part of their own block)."""
+    out: list[bool] = []
+    depth = 0
+    for line in fork_text.splitlines():
+        if HONK_START.search(line):
+            depth += 1
+            out.append(True)
+            continue
+        if HONK_END.search(line):
+            out.append(True)
+            depth -= 1
+            continue
+        out.append(depth > 0)
+    return out
+
+
+def unmarked_hunks(
+    fork_text: str, reference_text: str
+) -> list[tuple[int, int, int, int]]:
+    """Diff-aware drift detection.
+
+    Returns a list of `(fork_start, fork_end, ref_start, ref_end)` hunks
+    (half-open intervals, 0-indexed into the whitespace-normalized line
+    lists) where fork and reference differ AND the difference is not covered
+    by a HONK block on the fork side.
+
+    A hunk is considered "marked" (and therefore OK) when:
+      * It has fork lines AND every fork line in the hunk is inside a HONK
+        block, OR
+      * It has no fork lines (pure upstream removal) AND the fork position
+        is adjacent to a HONK block (i.e. the line before or after the
+        insertion point is a HONK START/END marker or sits inside a block).
+
+    Empty / whitespace-only lines are ignored so indentation-style reflow
+    doesn't register as drift.
+    """
+    import difflib
+
+    fork_lines = fork_text.splitlines()
+    ref_lines = reference_text.splitlines()
+
+    in_honk_raw = _fork_line_in_honk(fork_text)
+
+    # Build whitespace-normalized sequences with index maps back to the raw
+    # line numbers so we can look up HONK membership.
+    def _build(lines: list[str]) -> tuple[list[str], list[int]]:
+        norm_out: list[str] = []
+        idx_out: list[int] = []
+        for i, line in enumerate(lines):
+            collapsed = re.sub(r"\s+", " ", line).strip()
+            if collapsed:
+                norm_out.append(collapsed)
+                idx_out.append(i)
+        return norm_out, idx_out
+
+    fork_norm, fork_idx = _build(fork_lines)
+    ref_norm = _build(ref_lines)[0]
+
+    # Lift HONK membership onto the normalized index space.
+    fork_in_honk = [in_honk_raw[i] for i in fork_idx]
+
+    # Lines that are just punctuation, HONK markers, or whitespace are
+    # alignment noise to SequenceMatcher — it'll pair repetitive `}`/`{`/`;`
+    # lines asymmetrically across the two inputs and sometimes drag a HONK
+    # marker along for the ride. Skip hunks consisting entirely of such lines.
+    _PUNCT = re.compile(r"^[\s{}();,\[\]]*$")
+
+    def _is_noise(line: str) -> bool:
+        return bool(
+            _PUNCT.match(line) or HONK_START.search(line) or HONK_END.search(line)
+        )
+
+    def _all_noise(lines: list[str], lo: int, hi: int) -> bool:
+        return all(_is_noise(lines[k]) for k in range(lo, hi))
+
+    def _trim(
+        lo_fork: int, hi_fork: int, lo_ref: int, hi_ref: int
+    ) -> tuple[int, int, int, int]:
+        # SequenceMatcher will pull noise lines (closing braces, HONK markers)
+        # into the fork-side of an insertion/replacement when identical anchor
+        # lines exist further along on either side. Trim those off each end so
+        # they don't register as "drift outside HONK" just because the match
+        # algorithm picked the wrong anchor.
+        while (
+            hi_fork > lo_fork
+            and hi_ref > lo_ref
+            and _is_noise(fork_norm[hi_fork - 1])
+            and _is_noise(ref_norm[hi_ref - 1])
+        ):
+            hi_fork -= 1
+            hi_ref -= 1
+        while (
+            hi_fork > lo_fork and _is_noise(fork_norm[hi_fork - 1]) and lo_ref == hi_ref
+        ):
+            hi_fork -= 1
+        while (
+            hi_fork > lo_fork
+            and lo_fork < hi_fork
+            and _is_noise(fork_norm[lo_fork])
+            and lo_ref < hi_ref
+            and _is_noise(ref_norm[lo_ref])
+        ):
+            lo_fork += 1
+            lo_ref += 1
+        return lo_fork, hi_fork, lo_ref, hi_ref
+
+    bad: list[tuple[int, int, int, int]] = []
+    matcher = difflib.SequenceMatcher(a=fork_norm, b=ref_norm, autojunk=False)
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == "equal":
+            continue
+
+        i1, i2, j1, j2 = _trim(i1, i2, j1, j2)
+        if i1 == i2 and j1 == j2:
+            continue
+
+        if _all_noise(fork_norm, i1, i2) and _all_noise(ref_norm, j1, j2):
+            continue
+
+        fork_span = range(i1, i2)
+        if fork_span:
+            if all(fork_in_honk[i] for i in fork_span):
+                continue
+            bad.append((i1, i2, j1, j2))
+            continue
+
+        # Pure upstream-only hunk (fork removed lines). Accept if an adjacent
+        # fork position sits inside or at the boundary of a HONK block, which
+        # documents that the removal is intentional.
+        adjacent = False
+        for probe in (i1 - 1, i1):
+            if 0 <= probe < len(fork_in_honk) and fork_in_honk[probe]:
+                adjacent = True
+                break
+        if adjacent:
+            continue
+        bad.append((i1, i2, j1, j2))
+
+    return bad
 
 
 def pr_new_inline(path: str, base_ref: str, fork_ref: str) -> set[str]:

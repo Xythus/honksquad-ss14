@@ -36,8 +36,9 @@
   - Drill
   - Saw
   - Hemostat
-  # HONK START - Surgical drape recipe
+  # HONK START - Surgical drape and tray recipes
   - SurgicalDrape
+  - SurgicalTray
   # HONK END
 
 - type: latheRecipePack
@@ -52,6 +53,9 @@
   - OffsetCane
   - OffsetCaneWood
   - JetInjector
+  # HONK START - Manual resuscitator recipe
+  - ManualResuscitator
+  # HONK END
 
 - type: latheRecipePack
   id: RollerBedsStatic

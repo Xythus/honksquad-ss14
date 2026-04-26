@@ -21,24 +21,24 @@ public sealed partial class NitriumFormationReaction : IGasReactionEffect
         var bz = mixture.GetMoles(Gas.BZ);
 
         var heatEfficiency = Math.Min(
-            temperature / RussAtmospherics.NitriumFormationTempDivisor,
-            Math.Min(tritium, Math.Min(nitrogen, bz / 0.05f)));
+            temperature / AtmosConstants.NitriumFormationTempDivisor,
+            Math.Min(tritium, Math.Min(nitrogen, bz / AtmosConstants.NitriumFormationBZConsumedPerUnit)));
 
         if (heatEfficiency <= 0
             || tritium - heatEfficiency < 0
             || nitrogen - heatEfficiency < 0
-            || bz - heatEfficiency * 0.05f < 0)
+            || bz - heatEfficiency * AtmosConstants.NitriumFormationBZConsumedPerUnit < 0)
             return ReactionResult.NoReaction;
 
         var oldHeatCapacity = atmosphereSystem.GetHeatCapacity(mixture, true);
 
         mixture.AdjustMoles(Gas.Tritium, -heatEfficiency);
         mixture.AdjustMoles(Gas.Nitrogen, -heatEfficiency);
-        mixture.AdjustMoles(Gas.BZ, -heatEfficiency * 0.05f);
+        mixture.AdjustMoles(Gas.BZ, -heatEfficiency * AtmosConstants.NitriumFormationBZConsumedPerUnit);
         mixture.AdjustMoles(Gas.Nitrium, heatEfficiency);
 
         ReactionHelper.AdjustEnergy(mixture, atmosphereSystem, oldHeatCapacity,
-            -(heatEfficiency * RussAtmospherics.NitriumFormationEnergy), heatScale, temperature);
+            -(heatEfficiency * AtmosConstants.NitriumFormationEnergy), heatScale, temperature);
 
         return ReactionResult.Reacting;
     }

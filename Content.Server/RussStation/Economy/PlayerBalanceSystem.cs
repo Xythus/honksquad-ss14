@@ -3,6 +3,7 @@ using Content.Shared.Access.Systems;
 using Content.Shared.GameTicking;
 using Content.Shared.RussStation.Economy;
 using Content.Shared.RussStation.Economy.Components;
+using SharedEconomyConstants = Content.Shared.RussStation.Economy.EconomyConstants;
 using Robust.Shared.Configuration;
 using Robust.Shared.Player;
 using Robust.Shared.Random;
@@ -150,7 +151,7 @@ public sealed class PlayerBalanceSystem : EntitySystem
         comp.Transactions.Add(new TransactionRecord(amount, description, _timing.CurTime));
 
         if (comp.Transactions.Count > PlayerBalanceComponent.MaxTransactions)
-            comp.Transactions.RemoveAt(0);
+            comp.Transactions.RemoveAt(SharedEconomyConstants.OldestTransactionIndex);
     }
 
     /// <summary>
@@ -165,11 +166,47 @@ public sealed class PlayerBalanceSystem : EntitySystem
     }
 
     /// <summary>
+    /// Directly overwrites the balance. Use <see cref="AddBalance"/> or
+    /// <see cref="TryDeduct"/> for normal gameplay paths; this is for tests
+    /// and admin tooling that need to seed state.
+    /// </summary>
+    public void SetBalance(EntityUid uid, int amount, PlayerBalanceComponent? comp = null)
+    {
+        if (!Resolve(uid, ref comp, false))
+            return;
+
+        comp.Balance = amount;
+    }
+
+    /// <summary>
+    /// Assigns the player's job id used for wage tier lookup.
+    /// </summary>
+    public void SetJobId(EntityUid uid, string? jobId, PlayerBalanceComponent? comp = null)
+    {
+        if (!Resolve(uid, ref comp, false))
+            return;
+
+        comp.JobId = jobId;
+    }
+
+    /// <summary>
+    /// Toggles or sets whether paycheck notifications are muted for this entity.
+    /// Exposed so the wallet cartridge UI can flip the flag without poking the component directly.
+    /// </summary>
+    public void SetPaycheckMuted(EntityUid uid, bool muted, PlayerBalanceComponent? comp = null)
+    {
+        if (!Resolve(uid, ref comp, false))
+            return;
+
+        comp.PaycheckMuted = muted;
+    }
+
+    /// <summary>
     /// Create a new bank account for an entity, invalidating any previous account.
     /// Intentionally resets balance to startingBalance (default 0) -- creating a new account
     /// means the old one and its funds are gone. This is the intended penalty for account replacement.
     /// </summary>
-    public string CreateAccount(EntityUid uid, int startingBalance = 0)
+    public string CreateAccount(EntityUid uid, int startingBalance = EconomyConstants.NewAccountStartingBalance)
     {
         var comp = EnsureComp<PlayerBalanceComponent>(uid);
 
@@ -194,7 +231,7 @@ public sealed class PlayerBalanceSystem : EntitySystem
         string number;
         do
         {
-            number = _random.Next(0x10000000, int.MaxValue).ToString("X8");
+            number = _random.Next(EconomyConstants.AccountNumberMinValue, int.MaxValue).ToString(EconomyConstants.AccountNumberHexFormat);
         }
         while (_accountIndex.ContainsKey(number));
 

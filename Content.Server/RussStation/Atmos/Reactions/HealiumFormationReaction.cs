@@ -19,20 +19,22 @@ public sealed partial class HealiumFormationReaction : IGasReactionEffect
         var frezon = mixture.GetMoles(Gas.Frezon);
         var bz = mixture.GetMoles(Gas.BZ);
 
-        var heatEfficiency = Math.Min(temperature * 0.3f,
-            Math.Min(frezon / 2.75f, bz / 0.25f));
+        var heatEfficiency = Math.Min(temperature * AtmosConstants.HealiumHeatEfficiencyScale,
+            Math.Min(frezon / AtmosConstants.HealiumFrezonConsumedPerUnit, bz / AtmosConstants.HealiumBZConsumedPerUnit));
 
-        if (heatEfficiency <= 0 || frezon - heatEfficiency * 2.75f < 0 || bz - heatEfficiency * 0.25f < 0)
+        if (heatEfficiency <= 0
+            || frezon - heatEfficiency * AtmosConstants.HealiumFrezonConsumedPerUnit < 0
+            || bz - heatEfficiency * AtmosConstants.HealiumBZConsumedPerUnit < 0)
             return ReactionResult.NoReaction;
 
         var oldHeatCapacity = atmosphereSystem.GetHeatCapacity(mixture, true);
 
-        mixture.AdjustMoles(Gas.Frezon, -heatEfficiency * 2.75f);
-        mixture.AdjustMoles(Gas.BZ, -heatEfficiency * 0.25f);
-        mixture.AdjustMoles(Gas.Healium, heatEfficiency * 3f);
+        mixture.AdjustMoles(Gas.Frezon, -heatEfficiency * AtmosConstants.HealiumFrezonConsumedPerUnit);
+        mixture.AdjustMoles(Gas.BZ, -heatEfficiency * AtmosConstants.HealiumBZConsumedPerUnit);
+        mixture.AdjustMoles(Gas.Healium, heatEfficiency * AtmosConstants.HealiumProducedPerUnit);
 
         ReactionHelper.AdjustEnergy(mixture, atmosphereSystem, oldHeatCapacity,
-            heatEfficiency * RussAtmospherics.HealiumFormationEnergy, heatScale);
+            heatEfficiency * AtmosConstants.HealiumFormationEnergy, heatScale);
 
         return ReactionResult.Reacting;
     }

@@ -1,0 +1,53 @@
+<Document>
+# Action bar
+
+The slot row at the top of the screen. Each slot holds one action: a species ability, an item you're holding, combat mode, an emote, whatever's available. Click a slot or press its key to fire.
+
+## Shape and look
+
+[color=yellow]Settings > Misc > Action Bar[/color] controls the layout.
+
+- [color=#a4885c]Rows[/color] and [color=#a4885c]Slots per row[/color] decide how many buttons are visible and how they wrap. Default is one row of ten.
+- [color=#a4885c]Slot spacing[/color] is the gap between buttons.
+- [color=#a4885c]Show keybind label[/color] toggles the small key letter in the corner of each slot.
+- [color=#a4885c]Show empty slots (faint)[/color] draws the outline of unused slots so the shape is always visible.
+
+Background opacity lives in [color=yellow]Settings > Accessibility[/color] with the other UI opacity sliders.
+
+## Moving and locking the bar
+
+The bar starts locked. Open the actions window ([color=yellow][bold][keybind="OpenActionsMenu"][/bold][/color]), click the [color=#a4885c]Presets[/color] button, and toggle [color=#a4885c]Lock bar[/color] to unlock it.
+
+When unlocked, a small grab handle appears on the left edge of the bar. Drag it to reposition. While locked, drag-to-rearrange and right-click-clear are blocked so a misclick can't nudge a curated layout. Clicking a slot to fire still works either way.
+
+## Hotkeys
+
+Defaults are [color=yellow][bold]1-0[/bold][/color] for the first row and [color=yellow][bold]Shift+1-0[/bold][/color] for the second. All 20 can be rebound two ways, and both write the same keybind:
+
+1. [color=yellow]Settings > Controls[/color] has an [color=#a4885c]Assign action bar slot hotkeys[/color] checkbox at the top. Tick it, click any slot on the bar, press the key you want. The matching [color=#a4885c]Hotbar 1[/color], [color=#a4885c]Hotbar Shift 1[/color], etc. row updates.
+2. Or scroll down that same options panel and click the key field next to the [color=#a4885c]Hotbar[/color] entry directly.
+
+The slot's label updates immediately.
+
+## Auto-add new actions
+
+The actions window has an [color=#a4885c]Auto-add new actions[/color] checkbox. When off, picking up an item or getting a new ability leaves the bar alone. The action still appears in the actions menu, it just doesn't push your curated slots around.
+
+## Emotes
+
+Every emote you'd see in the radial emote menu also appears as a draggable button in the actions menu. The filter dropdown there has an [color=#a4885c]Emote[/color] checkbox if you want to look at just those.
+
+Drag one onto a hotbar slot. Rebind the slot's key if you want. Pressing that key plays the emote, same as typing the command.
+
+## Presets
+
+The actions window's [color=#a4885c]Presets[/color] button opens a panel for saving and reloading bar layouts. A preset is a snapshot of slot contents, bar size, position, and the lock toggle.
+
+- Type a name into the [color=#a4885c]Save[/color] field and click the button to snapshot the current bar. Reusing a name overwrites the old preset.
+- Each row has [color=#a4885c]Load[/color] and [color=#a4885c]Delete[/color] buttons. Load always re-locks the bar so a fresh layout can't be nudged before you've looked at it.
+- [color=#a4885c]Reset[/color] repopulates the bar from your character's known actions (emotes excluded) and snaps the bar back to its default position. Size, spacing, labels, and lock state are left alone.
+
+Presets are per-character. One saved as Bob the Engineer won't show up while you're playing Alice the Cargo Tech. The first preset matching your active character auto-loads on join, so a curated layout comes back without having to click Load each round.
+
+Emote slot placements live inside the preset. If you drag an emote to a new slot mid-round and want it to stick, save a new preset.
+</Document>

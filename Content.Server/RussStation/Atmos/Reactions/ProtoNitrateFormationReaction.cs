@@ -15,20 +15,23 @@ public sealed partial class ProtoNitrateFormationReaction : IGasReactionEffect
         var pluoxium = mixture.GetMoles(Gas.Pluoxium);
         var hydrogen = mixture.GetMoles(Gas.Hydrogen);
 
-        var heatEfficiency = Math.Min(temperature * 0.005f,
-            Math.Min(pluoxium / 0.2f, hydrogen / 2f));
+        var heatEfficiency = Math.Min(temperature * AtmosConstants.ProtoNitrateFormationHeatEfficiencyScale,
+            Math.Min(pluoxium / AtmosConstants.ProtoNitrateFormationPluoxiumConsumedPerUnit,
+                hydrogen / AtmosConstants.ProtoNitrateFormationHydrogenConsumedPerUnit));
 
-        if (heatEfficiency <= 0 || pluoxium - heatEfficiency * 0.2f < 0 || hydrogen - heatEfficiency * 2f < 0)
+        if (heatEfficiency <= 0
+            || pluoxium - heatEfficiency * AtmosConstants.ProtoNitrateFormationPluoxiumConsumedPerUnit < 0
+            || hydrogen - heatEfficiency * AtmosConstants.ProtoNitrateFormationHydrogenConsumedPerUnit < 0)
             return ReactionResult.NoReaction;
 
         var oldHeatCapacity = atmosphereSystem.GetHeatCapacity(mixture, true);
 
-        mixture.AdjustMoles(Gas.Pluoxium, -heatEfficiency * 0.2f);
-        mixture.AdjustMoles(Gas.Hydrogen, -heatEfficiency * 2f);
-        mixture.AdjustMoles(Gas.ProtoNitrate, heatEfficiency * 2.2f);
+        mixture.AdjustMoles(Gas.Pluoxium, -heatEfficiency * AtmosConstants.ProtoNitrateFormationPluoxiumConsumedPerUnit);
+        mixture.AdjustMoles(Gas.Hydrogen, -heatEfficiency * AtmosConstants.ProtoNitrateFormationHydrogenConsumedPerUnit);
+        mixture.AdjustMoles(Gas.ProtoNitrate, heatEfficiency * AtmosConstants.ProtoNitrateFormationProducedPerUnit);
 
         ReactionHelper.AdjustEnergy(mixture, atmosphereSystem, oldHeatCapacity,
-            heatEfficiency * RussAtmospherics.ProtoNitrateFormationEnergy, heatScale);
+            heatEfficiency * AtmosConstants.ProtoNitrateFormationEnergy, heatScale);
 
         return ReactionResult.Reacting;
     }

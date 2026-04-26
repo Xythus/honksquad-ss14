@@ -1,4 +1,5 @@
 using System.Numerics;
+using Content.Shared.RussStation.Carrying;
 using Content.Shared.RussStation.Carrying.Components;
 using Content.Shared.RussStation.Carrying.Systems;
 using Robust.Client.GameObjects;
@@ -33,7 +34,7 @@ internal sealed class CarryingSystem : SharedCarryingSystem
             // Local coordinates rotate with the parent, so counter-rotate the offset
             // to keep the carried entity visually above the carrier in screen space.
             var carrierXform = Transform(carrier);
-            var worldOffset = new Vector2(0, carrierComp.CarryOffset);
+            var worldOffset = new Vector2(CarryingConstants.CarryOffsetX, carrierComp.CarryOffset);
             var localOffset = (-carrierXform.LocalRotation).RotateVec(worldOffset);
 
             _xform.SetLocalPosition(uid, localOffset, xform);
@@ -45,7 +46,9 @@ internal sealed class CarryingSystem : SharedCarryingSystem
         if (!TryComp<SpriteComponent>(uid, out var sprite))
             return;
 
+#pragma warning disable HONK0010 // OriginalDrawDepth is client-only sprite state (not [DataField], not [AutoNetworkedField]); no replication intended.
         component.OriginalDrawDepth ??= sprite.DrawDepth;
+#pragma warning restore HONK0010
         _sprite.SetDrawDepth((uid, sprite), (int) DrawDepth.OverMobs);
     }
 
@@ -58,6 +61,8 @@ internal sealed class CarryingSystem : SharedCarryingSystem
             return;
 
         _sprite.SetDrawDepth((uid, sprite), component.OriginalDrawDepth.Value);
+#pragma warning disable HONK0010 // OriginalDrawDepth is client-only sprite state; no replication intended.
         component.OriginalDrawDepth = null;
+#pragma warning restore HONK0010
     }
 }

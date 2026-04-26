@@ -16,7 +16,11 @@ public sealed class FrontalLispSystem : EntitySystem
     public override void Initialize()
     {
         base.Initialize();
-        SubscribeLocalEvent<FrontalLispComponent, AccentGetEvent>(OnAccent);
+        // HONK START - #634: run after LizardAccent so Reptilian + FrontalLisp yields stable output.
+        // Without an explicit order, dispatch interleaves with LizardAccent's s->sss transform
+        // and the message varies across sessions for the same player.
+        SubscribeLocalEvent<FrontalLispComponent, AccentGetEvent>(OnAccent, after: [typeof(LizardAccentSystem)]);
+        // HONK END
     }
 
     private void OnAccent(EntityUid uid, FrontalLispComponent component, AccentGetEvent args)

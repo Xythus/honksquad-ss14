@@ -89,9 +89,22 @@ namespace Content.Client.Popups
                     _replayRecording.RecordClientMessage(new PopupCoordinatesEvent(message, type, GetNetCoordinates(coordinates)));
             }
 
-            var popupData = new WorldPopupData(message, type, coordinates, entity);
+            //HONK START - every displayed world popup goes through here; mirror into the popup chat log
+            RaiseLocalEvent(new Content.Shared.RussStation.Popups.CategorizedPopupRaisedEvent(message, null, type, entity));
+            //HONK END
+
+            //HONK START - entity-attached popups key on the entity only, so the repeat counter
+            // survives the mob moving between ticks. Coordinate-only popups still key on position
+            // so unrelated popups at different spots don't collapse.
+            var keyCoordinates = entity != null ? default : coordinates;
+            var popupData = new WorldPopupData(message, type, keyCoordinates, entity);
+            //HONK END
             if (_aliveWorldLabels.TryGetValue(popupData, out var existingLabel))
             {
+                //HONK START - follow the entity: update the label's position to the latest coords
+                // so the stacked popup floats above where the mob actually is now.
+                existingLabel.InitialPos = coordinates;
+                //HONK END
                 WrapAndRepeatPopup(existingLabel, popupData.Message);
                 return;
             }
@@ -136,6 +149,10 @@ namespace Content.Client.Popups
 
             if (recordReplay && _replayRecording.IsRecording)
                 _replayRecording.RecordClientMessage(new PopupCursorEvent(message, type));
+
+            //HONK START - every displayed cursor popup goes through here; mirror into the popup chat log
+            RaiseLocalEvent(new Content.Shared.RussStation.Popups.CategorizedPopupRaisedEvent(message, null, type, null));
+            //HONK END
 
             var popupData = new CursorPopupData(message, type);
             if (_aliveCursorLabels.TryGetValue(popupData, out var existingLabel))

@@ -31,7 +31,7 @@ public sealed partial class BalanceCartridgeUiFragment : BoxContainer
         {
             Orientation = LayoutOrientation.Horizontal,
             HorizontalAlignment = HAlignment.Center,
-            Margin = new Thickness(0, 8, 0, 0),
+            Margin = new Thickness(EconomyConstants.MuteRowLeftMargin, EconomyConstants.MuteRowTopMargin, EconomyConstants.MuteRowRightMargin, EconomyConstants.MuteRowBottomMargin),
         };
         muteRow.AddChild(_muteButton);
 
@@ -40,7 +40,7 @@ public sealed partial class BalanceCartridgeUiFragment : BoxContainer
             Text = Loc.GetString("balance-cartridge-tx-header"),
             StyleClasses = { "LabelHeading" },
             HorizontalAlignment = HAlignment.Center,
-            Margin = new Thickness(0, 12, 0, 4),
+            Margin = new Thickness(EconomyConstants.TxHeaderLeftMargin, EconomyConstants.TxHeaderTopMargin, EconomyConstants.TxHeaderRightMargin, EconomyConstants.TxHeaderBottomMargin),
         };
 
         _transactionList = new BoxContainer
@@ -57,7 +57,7 @@ public sealed partial class BalanceCartridgeUiFragment : BoxContainer
         scroll.AddChild(_transactionList);
 
         // The XAML BoxContainer is the second child (index 1) of the root.
-        var content = (BoxContainer) GetChild(1);
+        var content = (BoxContainer) GetChild(EconomyConstants.RootContentChildIndex);
         content.AddChild(muteRow);
         content.AddChild(txHeader);
         content.AddChild(scroll);
@@ -113,7 +113,7 @@ public sealed partial class BalanceCartridgeUiFragment : BoxContainer
             {
                 Text = $"{sign}{tx.Amount}",
                 StyleClasses = { tx.Amount >= 0 ? "LabelKeyValueStatValue" : "LabelSubText" },
-                MinWidth = 60,
+                MinWidth = EconomyConstants.TxAmountColumnMinWidth,
             });
             row.AddChild(new Label
             {

@@ -10,23 +10,9 @@ namespace Content.Shared.RussStation.Surgery.Systems;
 
 public abstract partial class SharedSurgerySystem : EntitySystem
 {
+    protected static readonly ProtoId<AlertPrototype> SurgeryDrapedAlert = "SurgeryDraped";
+
     private static readonly ProtoId<ToolQualityPrototype> CauterizingQuality = "Cauterizing";
-
-    /// <summary>
-    /// Default step durations per tool quality, used when a step doesn't specify its own.
-    /// </summary>
-    private static readonly Dictionary<string, float> DefaultStepDurations = new()
-    {
-        { "Slicing", 2.0f },
-        { "Retracting", 1.5f },
-        { "Clamping", 2.0f },
-        { "Sawing", 3.0f },
-        { "Drilling", 2.0f },
-        { "BoneSetting", 3.0f },
-        { "Cauterizing", 2.0f },
-    };
-
-    private const float FallbackStepDuration = 2.0f;
 
     [Dependency] protected readonly AlertsSystem _alerts = default!;
     [Dependency] protected readonly SharedToolSystem _tool = default!;
@@ -59,7 +45,11 @@ public abstract partial class SharedSurgerySystem : EntitySystem
 
     private void OnDrapedShutdown(Entity<SurgeryDrapedComponent> ent, ref ComponentShutdown args)
     {
-        _alerts.ClearAlert(ent.Owner, "SurgeryDraped");
+        _alerts.ClearAlert(ent.Owner, SurgeryDrapedAlert);
+
+        // Remove the visible drape overlay (spawned server-side on startup).
+        if (ent.Comp.OverlayEntity is { } overlay && Exists(overlay))
+            QueueDel(overlay);
 
         // Drop bedsheet/drape when draping is removed
         if (ent.Comp.Bedsheet is not { } bedsheet || !Exists(bedsheet))
@@ -74,30 +64,37 @@ public abstract partial class SharedSurgerySystem : EntitySystem
     /// </summary>
     public bool ToolMatchesStep(EntityUid tool, SurgeryStep step)
     {
-        return _tool.HasQuality(tool, step.Quality);
+        return _tool.HasQuality(tool, step.GetQuality());
     }
 
     /// <summary>
-    /// Gets the base duration for a step: explicit override or centralized default.
+    /// Gets the base duration for a step: explicit override, preset default, or fallback. Every
+    /// in-use preset now carries a duration, so hitting the fallback means a procedure authored
+    /// with <see cref="SurgeryStepPreset.None"/> and no explicit duration.
     /// </summary>
     public static float GetBaseStepDuration(SurgeryStep step)
     {
-        if (step.Duration.HasValue)
-            return step.Duration.Value;
-
-        return DefaultStepDurations.GetValueOrDefault(step.Quality, FallbackStepDuration);
+        return step.GetDuration() ?? SurgeryConstants.FallbackStepDuration;
     }
 
     /// <summary>
-    /// Gets the effective DoAfter duration for a surgery step, incorporating
-    /// surface, drape, and difficulty modifiers (not tool tier, that's server-side).
+    /// Gets the effective DoAfter duration for a surgery step, incorporating surface, drape, and
+    /// difficulty modifiers (not tool tier, that's server-side). Also raises a
+    /// <see cref="SurgeryStepDurationModifierEvent"/> so subscribers can stack their own per-step
+    /// multipliers without touching this system.
     /// </summary>
-    public TimeSpan GetStepDuration(SurgeryStep step, EntityUid patient, SurgeryDifficulty difficulty)
+    public TimeSpan GetStepDuration(SurgeryStep step, EntityUid patient, SurgeryDifficulty difficulty, EntityUid? surgeon = null)
     {
+        var ev = new SurgeryStepDurationModifierEvent(step, patient, surgeon);
+        RaiseLocalEvent(patient, ref ev);
+        if (surgeon is { } surgeonUid)
+            RaiseLocalEvent(surgeonUid, ref ev);
+
         return TimeSpan.FromSeconds(GetBaseStepDuration(step)
             * GetSurfaceSpeedModifier(patient)
             * GetDrapeSpeedModifier(patient)
-            * GetDifficultyModifier(difficulty));
+            * GetDifficultyModifier(difficulty)
+            * ev.Multiplier);
     }
 
     /// <summary>
@@ -106,10 +103,10 @@ public abstract partial class SharedSurgerySystem : EntitySystem
     public float GetSurfaceSpeedModifier(EntityUid patient)
     {
         if (!TryComp<BuckleComponent>(patient, out var buckle) || buckle.BuckledTo is not { } strap)
-            return 2f;
+            return SurgeryConstants.NoSurgerySurfacePenalty;
 
         if (!TryComp<SurgerySurfaceComponent>(strap, out var surface))
-            return 2f;
+            return SurgeryConstants.NoSurgerySurfacePenalty;
 
         return surface.SpeedModifier;
     }
@@ -121,7 +118,7 @@ public abstract partial class SharedSurgerySystem : EntitySystem
     public float GetDrapeSpeedModifier(EntityUid patient)
     {
         if (!TryComp<SurgeryDrapedComponent>(patient, out var draped))
-            return 1f;
+            return SurgeryConstants.NoDrapeSpeedModifier;
 
         return draped.DrapeSpeedModifier;
     }
@@ -133,11 +130,11 @@ public abstract partial class SharedSurgerySystem : EntitySystem
     {
         return difficulty switch
         {
-            SurgeryDifficulty.Minor => 0.8f,
-            SurgeryDifficulty.Standard => 1.0f,
-            SurgeryDifficulty.Major => 1.3f,
-            SurgeryDifficulty.Critical => 1.5f,
-            _ => 1.0f,
+            SurgeryDifficulty.Minor => SurgeryConstants.DifficultyMinorModifier,
+            SurgeryDifficulty.Standard => SurgeryConstants.DifficultyStandardModifier,
+            SurgeryDifficulty.Major => SurgeryConstants.DifficultyMajorModifier,
+            SurgeryDifficulty.Critical => SurgeryConstants.DifficultyCriticalModifier,
+            _ => SurgeryConstants.DifficultyStandardModifier,
         };
     }
 

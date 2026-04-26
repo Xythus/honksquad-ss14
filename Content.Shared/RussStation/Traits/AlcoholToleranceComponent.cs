@@ -5,9 +5,9 @@ namespace Content.Shared.RussStation.Traits;
 /// <summary>
 /// Reduces the duration of drunkenness by a configurable multiplier.
 /// </summary>
-[RegisterComponent, NetworkedComponent]
+[RegisterComponent, NetworkedComponent, AutoGenerateComponentState]
 public sealed partial class AlcoholToleranceComponent : Component
 {
-    [DataField]
-    public float BoozeStrengthMultiplier = 0.5f;
+    [DataField, AutoNetworkedField]
+    public float BoozeStrengthMultiplier = TraitsConstants.AlcoholTolerance.BoozeStrengthMultiplier;
 }

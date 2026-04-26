@@ -9,20 +9,34 @@
     state: icon
   - type: Item
     sprite: Objects/Specific/Janitorial/light_replacer.rsi
+  # HONK START - trim initial fill to 12 total so it fits under LightReplacerRecycler's MaxStoredBulbs
   - type: LightReplacer
     contents:
     - id: LightTube
-      amount: 8
+      amount: 7
     - id: LightBulb
       amount: 5
+  # HONK END
   - type: StaticPrice
     price: 100
   - type: ContainerContainer
     containers:
       light_replacer_storage: !type:Container
+  # HONK START - Tag for janitor belt whitelist
   - type: Tag
     tags:
     - LightReplacer
+  # HONK END
+  # HONK START - Light replacer recycler
+  - type: LightReplacerRecycler
+  - type: UserInterface
+    interfaces:
+      enum.LightReplacerRecyclerUiKey.Key:
+        type: LightReplacerRecyclerBoundUserInterface
+  - type: ActivatableUI
+    inHandsOnly: true
+    key: enum.LightReplacerRecyclerUiKey.Key
+  # HONK END
 
 - type: entity
   parent: LightReplacer

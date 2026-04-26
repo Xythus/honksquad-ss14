@@ -1,4 +1,5 @@
 using Content.Shared.Alert;
+using Content.Shared.RussStation.Wounds.Systems;
 using Robust.Shared.GameObjects;
 using Robust.Shared.GameStates;
 using Robust.Shared.Prototypes;
@@ -11,6 +12,7 @@ namespace Content.Shared.RussStation.Wounds;
 /// Tracks active wounds (fractures and burns) and bleed source info for display.
 /// </summary>
 [RegisterComponent, NetworkedComponent, AutoGenerateComponentState]
+[Access(typeof(SharedWoundSystem), typeof(WoundDisplaySystem))]
 public sealed partial class WoundComponent : Component
 {
     /// <summary>
@@ -30,7 +32,12 @@ public sealed partial class WoundComponent : Component
     /// BleedAmount breakpoints for bleeding wound tiers 1/2/3.
     /// </summary>
     [DataField, ViewVariables(VVAccess.ReadWrite)]
-    public float[] BleedTierThresholds = [1f, 3f, 6f];
+    public float[] BleedTierThresholds =
+    [
+        WoundsConstants.DefaultBleedTier1Threshold,
+        WoundsConstants.DefaultBleedTier2Threshold,
+        WoundsConstants.DefaultBleedTier3Threshold,
+    ];
 
     [DataField]
     public ProtoId<AlertPrototype> FractureAlert = "Fracture";
@@ -43,5 +50,5 @@ public sealed partial class WoundComponent : Component
     /// Higher values make wounds harder to trigger (used by the Tough quirk).
     /// </summary>
     [DataField, ViewVariables(VVAccess.ReadWrite)]
-    public float ThresholdMultiplier = 1f;
+    public float ThresholdMultiplier = WoundsConstants.DefaultThresholdMultiplier;
 }

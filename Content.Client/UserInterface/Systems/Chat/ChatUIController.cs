@@ -241,6 +241,9 @@ public sealed partial class ChatUIController : UIController
         _config.OnValueChanged(CCVars.ChatWindowOpacity, OnChatWindowOpacityChanged);
 
         InitializeHighlights();
+        // HONK START - issue #609 audible radio highlights
+        HonkInitializeHighlightSound();
+        // HONK END
     }
 
     public void OnScreenLoad()
@@ -372,6 +375,14 @@ public sealed partial class ChatUIController : UIController
 
     private void FocusChat()
     {
+        // HONK START — issue #577, route to floating input when enabled
+        if (_config.GetCVar(CCVars.FloatingChatInput))
+        {
+            UIManager.GetUIController<Content.Client.RussStation.Chat.FloatingChatInputController>().Show();
+            return;
+        }
+        // HONK END
+
         foreach (var chat in _chats)
         {
             if (!chat.Main)
@@ -441,11 +452,23 @@ public sealed partial class ChatUIController : UIController
             return;
         }
 
+        // HONK START - coalesce at enqueue time so rapid repeats bump the counter immediately
+        // instead of waiting for the speech-bubble delay queue to dequeue each duplicate. Falls
+        // through to the existing enqueue path when there's no alive match yet. (issue #578)
+        if (HonkTryCoalesceEmoteBubble(ent, msg, speechType))
+            return;
+        // HONK END
+
         EnqueueSpeechBubble(ent, msg, speechType);
     }
 
     private void CreateSpeechBubble(EntityUid entity, SpeechBubbleData speechData)
     {
+        // HONK START - coalesce repeated emote bubbles in place instead of stacking a new bubble (issue #578)
+        if (HonkTryCoalesceEmoteBubble(entity, speechData.Message, speechData.Type))
+            return;
+        // HONK END
+
         var bubble =
             SpeechBubble.CreateSpeechBubble(speechData.Type, speechData.Message, entity);
 
@@ -526,6 +549,10 @@ public sealed partial class ChatUIController : UIController
 
         // can always hear server (nobody can actually send server messages).
         FilterableChannels |= ChatChannel.Server;
+
+        // HONK START - popup mirror is always filterable (issue #578)
+        FilterableChannels |= ChatChannel.Popup;
+        // HONK END
 
         if (_state.CurrentState is GameplayStateBase)
         {
@@ -834,6 +861,10 @@ public sealed partial class ChatUIController : UIController
             msg.WrappedMessage = SharedChatSystem.InjectTagAroundString(msg, highlight, "color", _highlightsColor);
         }
 
+        // HONK START - issue #609 audible radio highlights
+        HonkTryPlayHighlightSound(msg);
+        // HONK END
+
         // Color any codewords for minds that have roles that use them
         if (_player.LocalUser != null && _mindSystem != null && _roleCodewordSystem != null)
         {
@@ -847,8 +878,36 @@ public sealed partial class ChatUIController : UIController
             }
         }
 
+        //HONK START - let HideChat emotes (gasp, snore, etc.) land in the Emotes filter alongside
+        // typed emotes. Upstream set HideChat=true on these so they wouldn't enter chat history, but
+        // the chat log is the only scrollback path for transient visuals. The server broadcasts
+        // to everyone in voice range without a line-of-sight check, so gate on whether the local
+        // player can actually examine the source (same rule as the popup log). Self-sourced and
+        // sourceless emotes always pass. Other HideChat channels stay suppressed entirely.
+        if (msg.HideChat && msg.Channel == ChatChannel.Emotes)
+        {
+            var honkSource = _ent.GetEntity(msg.SenderEntity);
+            var honkExaminer = _player.LocalEntity;
+            var honkVisible = honkSource == default
+                || honkExaminer is null
+                || honkSource == honkExaminer.Value
+                || _ent.System<Content.Shared.Examine.ExamineSystemShared>().CanExamine(honkExaminer.Value, honkSource);
+            if (honkVisible)
+                msg.HideChat = false;
+        }
+        //HONK END
+
+        // HONK START - coalesce repeated popup-mirror / emote entries in place (issue #578).
+        // When a match is found, the existing History entry's WrappedMessage is mutated and the
+        // chat boxes re-render that entry via the MessageUpdated event. We still fall through to
+        // the speech-bubble path so emote bubbles can coalesce the same way.
+        var honkCoalesced = !msg.HideChat && HonkTryCoalesceChatMessage(msg);
+        // HONK END
+
         // Log all incoming chat to repopulate when filter is un-toggled
-        if (!msg.HideChat)
+        // HONK START - skip History.Add when the fork coalescer folded this into an existing entry (issue #578)
+        if (!msg.HideChat && !honkCoalesced)
+        // HONK END
         {
             History.Add((_timing.CurTick, msg));
             MessageAdded?.Invoke(msg);

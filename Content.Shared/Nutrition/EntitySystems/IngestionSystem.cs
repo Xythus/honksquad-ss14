@@ -256,13 +256,37 @@ public sealed partial class IngestionSystem : EntitySystem
         // Can we digest the specific item we're trying to eat?
         if (!IsDigestibleBy(args.Ingested, stomachs, out var popup))
         {
-            if (!args.Ingest || !popup)
+            //HONK START - block-wraps the entire failure path. Original was:
+            //   if (!args.Ingest || !popup) return;
+            //   if (forceFed) <feeder popup> else <self popup>
+            //   return;
+            // Two changes for ghost-role mob feedback (Hamlet, etc.):
+            //
+            // (a) When this is a verb-availability check (ingest=false) and the
+            //     food is digestible-in-principle but no stomach matches its
+            //     whitelist (popup=true), still mark the attempt Handled so
+            //     TryGetIngestionVerb offers the eat verb. Otherwise the player
+            //     has no way to even attempt the eat and the popup never fires.
+            //     popup=false means the food is structurally non-food (e.g.
+            //     RequireDead on a living target), so we keep the upstream
+            //     silent skip.
+            // (b) When the player commits (ingest=true), pop on the eater always
+            //     and additionally on the feeder when force-fed, instead of the
+            //     upstream one-or-the-other branch. The eater's popup is what
+            //     this ghost-role flow needs.
+            if (!popup)
                 return;
 
+            if (!args.Ingest)
+            {
+                args.Handled = true;
+                return;
+            }
+
+            _popup.PopupClient(Loc.GetString("ingestion-cant-digest", ("entity", food)), entity, entity);
             if (forceFed)
                 _popup.PopupClient(Loc.GetString("ingestion-cant-digest-other", ("target", entity), ("entity", food)), entity, args.User);
-            else
-                _popup.PopupClient(Loc.GetString("ingestion-cant-digest", ("entity", food)), entity, entity);
+            //HONK END
 
             return;
         }

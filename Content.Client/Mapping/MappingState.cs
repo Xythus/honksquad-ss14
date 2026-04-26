@@ -106,7 +106,8 @@ public sealed class MappingState : GameplayStateBase
         Screen.DecalSystem = _decal;
         Screen.Prototypes.SearchBar.OnTextChanged += OnSearch;
         Screen.Prototypes.CollapseAllButton.OnPressed += OnCollapseAll;
-        Screen.Prototypes.ClearSearchButton.OnPressed += OnClearSearch;
+        //HONK START - ClearSearchButton removed from XAML; right-click search box to clear
+        //HONK END
         Screen.Prototypes.GetPrototypeData += OnGetData;
         Screen.Prototypes.SelectionChanged += OnSelected;
         Screen.Prototypes.CollapseToggled += OnCollapseToggled;
@@ -165,7 +166,8 @@ public sealed class MappingState : GameplayStateBase
 
         Screen.Prototypes.SearchBar.OnTextChanged -= OnSearch;
         Screen.Prototypes.CollapseAllButton.OnPressed -= OnCollapseAll;
-        Screen.Prototypes.ClearSearchButton.OnPressed -= OnClearSearch;
+        //HONK START - ClearSearchButton removed from XAML; right-click search box to clear
+        //HONK END
         Screen.Prototypes.GetPrototypeData -= OnGetData;
         Screen.Prototypes.SelectionChanged -= OnSelected;
         Screen.Prototypes.CollapseToggled -= OnCollapseToggled;
@@ -444,12 +446,6 @@ public sealed class MappingState : GameplayStateBase
         }
 
         Screen.Prototypes.ScrollContainer.SetScrollValue(new Vector2(0, 0));
-    }
-
-    private void OnClearSearch(ButtonEventArgs obj)
-    {
-        Screen.Prototypes.SearchBar.Text = string.Empty;
-        OnSearch(new LineEditEventArgs(Screen.Prototypes.SearchBar, string.Empty));
     }
 
     private void OnGetData(IPrototype prototype, List<Texture> textures)

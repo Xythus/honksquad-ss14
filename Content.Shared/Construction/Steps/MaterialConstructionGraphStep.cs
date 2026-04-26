@@ -41,11 +41,15 @@ namespace Content.Shared.Construction.Steps
         public override ConstructionGuideEntry GenerateGuideEntry()
         {
             var material = IoCManager.Resolve<IPrototypeManager>().Index(MaterialPrototypeId);
+            //HONK START - upstream pre-resolved `var materialName = Loc.GetString(material.Name, ("amount", Amount))` here
+            //HONK END
 
             return new ConstructionGuideEntry()
             {
                 Localization = "construction-presenter-material-step",
+                //HONK START - locale double-lookup fix: presenter already localizes, don't pre-resolve
                 Arguments = new (string, object)[]{("amount", Amount), ("material", material.Name)},
+                //HONK END
                 Icon = material.Icon,
             };
         }

@@ -3,6 +3,9 @@ using System.Text.RegularExpressions;
 using Content.Server.Speech.Components;
 using Content.Server.Speech.Prototypes;
 using Content.Shared.Speech;
+// HONK START - #634: Accentless strip-list event handling.
+using Content.Shared.Traits.Assorted;
+// HONK END
 using JetBrains.Annotations;
 using Robust.Shared.Prototypes;
 using Robust.Shared.Random;
@@ -25,9 +28,34 @@ namespace Content.Server.Speech.EntitySystems
         public override void Initialize()
         {
             SubscribeLocalEvent<ReplacementAccentComponent, AccentGetEvent>(OnAccent);
+            // HONK START - #634: fold legacy single `accent:` yaml field into the list so callers only read Accents.
+            SubscribeLocalEvent<ReplacementAccentComponent, ComponentInit>(OnInit);
+            // Accentless dispatches this when a per-species strip list fires; handled here because
+            // ReplacementAccentComponent lives in Content.Server.
+            SubscribeLocalEvent<ReplacementAccentComponent, AccentlessStripReplacementAccentsEvent>(OnAccentlessStrip);
+            // HONK END
 
             _proto.PrototypesReloaded += OnPrototypesReloaded;
         }
+
+        // HONK START - #634
+        private void OnInit(EntityUid uid, ReplacementAccentComponent component, ComponentInit args)
+        {
+            if (component.Accent == null)
+                return;
+
+            var id = new ProtoId<ReplacementAccentPrototype>(component.Accent);
+            if (!component.Accents.Contains(id))
+                component.Accents.Add(id);
+            component.Accent = null;
+        }
+
+        private void OnAccentlessStrip(EntityUid uid, ReplacementAccentComponent component, ref AccentlessStripReplacementAccentsEvent args)
+        {
+            foreach (var accentId in args.AccentIds)
+                component.Accents.Remove(accentId);
+        }
+        // HONK END
 
         public override void Shutdown()
         {
@@ -36,10 +64,36 @@ namespace Content.Server.Speech.EntitySystems
             _proto.PrototypesReloaded -= OnPrototypesReloaded;
         }
 
+        // HONK START - #634: iterate list of accents; random-pick among stacked full-replacement entries.
         private void OnAccent(EntityUid uid, ReplacementAccentComponent component, AccentGetEvent args)
         {
-            args.Message = ApplyReplacements(args.Message, component.Accent);
+            if (component.Accents.Count == 0)
+                return;
+
+            var fullReplacementAccents = new List<ProtoId<ReplacementAccentPrototype>>();
+            foreach (var accent in component.Accents)
+            {
+                if (_proto.TryIndex(accent, out var proto) && proto.FullReplacements != null)
+                    fullReplacementAccents.Add(accent);
+            }
+
+            if (fullReplacementAccents.Count > 0)
+            {
+                var winner = _random.Pick(fullReplacementAccents);
+                foreach (var accent in component.Accents)
+                {
+                    if (fullReplacementAccents.Contains(accent) && accent != winner)
+                        continue;
+
+                    args.Message = ApplyReplacements(args.Message, accent);
+                }
+                return;
+            }
+
+            foreach (var accent in component.Accents)
+                args.Message = ApplyReplacements(args.Message, accent);
         }
+        // HONK END
 
         /// <summary>
         ///     Attempts to apply a given replacement accent prototype to a message.

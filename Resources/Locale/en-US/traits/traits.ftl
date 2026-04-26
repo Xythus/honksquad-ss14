@@ -29,6 +29,12 @@ trait-unrevivable-desc = You are unable to be revived by defibrillators.
 
 trait-accentless-name = Accentless
 trait-accentless-desc = You don't have the accent that your species would usually have.
+# HONK START - #634 per-species description overrides
+trait-accentless-desc-reptilian = Removes your lizard accent.
+trait-accentless-desc-moth = Removes your moth accent.
+trait-accentless-desc-dwarf = Removes your Scottish accent.
+trait-accentless-desc-skeleton = Removes your skeleton accent.
+# HONK END
 
 trait-frontal-lisp-name = Lisp
 trait-frontal-lisp-desc = You thpeak with a lithp.

@@ -1,3 +1,4 @@
+using Content.Server.RussStation.Atmos;
 using Content.Shared.RussStation.Spatial;
 using Robust.Shared.Maths;
 
@@ -10,6 +11,9 @@ namespace Content.Server.RussStation.Atmos.Systems;
 /// </summary>
 public static class RadiationBlobMath
 {
+    private const float MinRadiusForSlope = 0.5f;
+    private const float DefaultSlope = 0.5f;
+
     /// <summary>
     ///     Compute the intensity-weighted centroid of a set of tiles.
     /// </summary>
@@ -51,10 +55,13 @@ public static class RadiationBlobMath
             if (tile.Y > maxY) maxY = tile.Y;
         }
 
-        var radius = Math.Max(maxX - minX + 1, maxY - minY + 1) / 2f;
-        var slope = radius > 0.5f && minRads > 0f
-            ? (maxRads / minRads - 1f) / radius
-            : 0.5f;
+        var radius = Math.Max(
+            maxX - minX + AtmosConstants.RadiationBlobInclusiveExtentAdjust,
+            maxY - minY + AtmosConstants.RadiationBlobInclusiveExtentAdjust)
+            / AtmosConstants.RadiationBlobRadiusDivisor;
+        var slope = radius > MinRadiusForSlope && minRads > 0f
+            ? (maxRads / minRads - AtmosConstants.RadiationBlobFlatGradientBaseline) / radius
+            : DefaultSlope;
 
         return (maxRads, slope);
     }

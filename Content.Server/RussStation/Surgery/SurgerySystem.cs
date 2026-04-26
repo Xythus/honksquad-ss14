@@ -7,6 +7,7 @@ using Content.Shared.Popups;
 using Content.Shared.RussStation.Surgery;
 using Content.Shared.RussStation.Surgery.Components;
 using Content.Shared.RussStation.Surgery.Systems;
+using Content.Shared.RussStation.Wounds.Systems;
 using Content.Shared.Standing;
 using Content.Shared.Tag;
 using Content.Shared.Tools;
@@ -25,6 +26,13 @@ public sealed partial class SurgerySystem : SharedSurgerySystem
     private static readonly ProtoId<TagPrototype> TierAdvancedTag = "TierAdvanced";
     private static readonly ProtoId<TagPrototype> TierExperimentalTag = "TierExperimental";
 
+    private static readonly Dictionary<ProtoId<TagPrototype>, float> ToolTierModifiers = new()
+    {
+        { TierExperimentalTag, SurgeryConstants.ToolTierExperimentalModifier },
+        { TierAdvancedTag, SurgeryConstants.ToolTierAdvancedModifier },
+        { TierStandardTag, SurgeryConstants.ToolTierStandardModifier },
+    };
+
     [Dependency] private readonly SharedDoAfterSystem _doAfter = default!;
     [Dependency] private readonly DamageableSystem _damageable = default!;
     [Dependency] private readonly SharedBloodstreamSystem _bloodstream = default!;
@@ -34,6 +42,7 @@ public sealed partial class SurgerySystem : SharedSurgerySystem
     [Dependency] private readonly TagSystem _tags = default!;
     [Dependency] private readonly SharedPopupSystem _popup = default!;
     [Dependency] private readonly StandingStateSystem _standing = default!;
+    [Dependency] private readonly SharedWoundSystem _wounds = default!;
 
     [Dependency] private readonly EntityQuery<SurgeryDrapedComponent> _drapedQuery = default!;
     [Dependency] private readonly EntityQuery<ActiveSurgeryComponent> _activeSurgeryQuery = default!;
@@ -48,7 +57,6 @@ public sealed partial class SurgerySystem : SharedSurgerySystem
         SubscribeLocalEvent<ActiveSurgeryComponent, SurgeryStepDoAfterEvent>(OnStepDoAfter);
         SubscribeLocalEvent<ActiveSurgeryComponent, SurgeryCauteryDoAfterEvent>(OnCauteryDoAfter);
         SubscribeLocalEvent<SurgeryDrapedComponent, ComponentStartup>(OnDrapedStartup);
-        SubscribeLocalEvent<SurgeryDrapedComponent, RemoveSurgeryDrapeAlertEvent>(OnRemoveDrapeAlert);
 
         SubscribeNetworkEvent<SelectSurgeryProcedureEvent>(OnProcedureSelected);
         SubscribeNetworkEvent<SelectOrganEvent>(OnOrganSelected);
@@ -56,6 +64,7 @@ public sealed partial class SurgerySystem : SharedSurgerySystem
         SubscribeLocalEvent<PrototypesReloadedEventArgs>(OnPrototypesReloaded);
 
         InitializeOrgans();
+        InitializeInterrupt();
         CacheProcedureIds();
     }
 
@@ -135,17 +144,7 @@ public sealed partial class SurgerySystem : SharedSurgerySystem
 
     private void OnDrapedStartup(Entity<SurgeryDrapedComponent> ent, ref ComponentStartup args)
     {
-        _alerts.ShowAlert(ent.Owner, "SurgeryDraped");
-    }
-
-    private void OnRemoveDrapeAlert(Entity<SurgeryDrapedComponent> ent, ref RemoveSurgeryDrapeAlertEvent args)
-    {
-        if (args.Handled)
-            return;
-
-        args.Handled = true;
-        RemComp<ActiveSurgeryComponent>(ent);
-        RemComp<SurgeryDrapedComponent>(ent); // Triggers OnDrapedShutdown -> drops bedsheet, clears alert
+        _alerts.ShowAlert(ent.Owner, SurgeryDrapedAlert);
     }
 
     private void OpenProcedureMenu(EntityUid surgeon, EntityUid patient, EntityUid bedsheet)
@@ -205,6 +204,13 @@ public sealed partial class SurgerySystem : SharedSurgerySystem
             return;
         }
 
+        // Validate: if the procedure only heals and the patient has no matching damage, refuse.
+        if (!ProcedureHasAnythingToTend(target.Value, proto))
+        {
+            _popup.PopupEntity(Loc.GetString("surgery-nothing-to-tend", ("target", target.Value)), target.Value, surgeon);
+            return;
+        }
+
         // Now drape the patient and take the bedsheet/drape
         var draped = EnsureComp<SurgeryDrapedComponent>(target.Value);
         draped.Bedsheet = bedsheet.Value;
@@ -214,7 +220,7 @@ public sealed partial class SurgerySystem : SharedSurgerySystem
 
         Dirty(target.Value, draped);
 
-        var drapeContainer = _container.EnsureContainer<Container>(target.Value, "surgery_drape");
+        var drapeContainer = _container.EnsureContainer<Container>(target.Value, SurgeryConstants.SurgeryDrapeContainerId);
         if (!_container.Insert(bedsheet.Value, drapeContainer))
         {
             Log.Warning($"Failed to insert bedsheet {ToPrettyString(bedsheet.Value)} into surgery drape container on {ToPrettyString(target.Value)}");
@@ -222,11 +228,18 @@ public sealed partial class SurgerySystem : SharedSurgerySystem
             return;
         }
 
-        _popup.PopupEntity(Loc.GetString("surgery-drape-patient", ("target", target.Value)), target.Value);
+        // Spawn the drape overlay above the patient. The drape item can override which overlay is
+        // used; anything without the component (e.g. upstream bedsheets) falls back to the default.
+        var overlayProto = CompOrNull<SurgeryDrapeOverlayComponent>(bedsheet.Value)?.OverlayPrototype
+            ?? SurgeryConstants.DefaultDrapeOverlayPrototype;
+        var overlay = Spawn(overlayProto, Transform(target.Value).Coordinates);
+        _xform.SetParent(overlay, target.Value);
+        _xform.SetLocalPosition(overlay, System.Numerics.Vector2.Zero);
+        draped.OverlayEntity = overlay;
 
         var active = EnsureComp<ActiveSurgeryComponent>(target.Value);
         active.ProcedureId = ev.ProcedureId;
-        active.CurrentStep = 0;
+        active.CurrentStep = SurgeryConstants.InitialProcedureStepIndex;
         active.Surgeon = surgeon;
         Dirty(target.Value, active);
 
@@ -260,7 +273,7 @@ public sealed partial class SurgerySystem : SharedSurgerySystem
         }
 
         // Advance past repeatable step if tool matches next step
-        if (currentStep.Repeatable && active.CurrentStep + 1 < proto.Steps.Count)
+        if (currentStep.GetRepeatable() && active.CurrentStep + 1 < proto.Steps.Count)
         {
             var nextStep = proto.Steps[active.CurrentStep + 1];
             if (ToolMatchesStep(tool, nextStep))
@@ -278,7 +291,7 @@ public sealed partial class SurgerySystem : SharedSurgerySystem
     private void StartStepDoAfter(EntityUid surgeon, EntityUid patient, EntityUid tool, SurgeryStep step, SurgeryDifficulty difficulty)
     {
         var duration = TimeSpan.FromSeconds(
-            (float) GetStepDuration(step, patient, difficulty).TotalSeconds
+            (float) GetStepDuration(step, patient, difficulty, surgeon).TotalSeconds
             * GetToolTierModifier(tool));
 
         var doAfterArgs = new DoAfterArgs(
@@ -301,7 +314,7 @@ public sealed partial class SurgerySystem : SharedSurgerySystem
 
     private void StartCauteryClose(EntityUid surgeon, EntityUid patient, EntityUid tool)
     {
-        var duration = TimeSpan.FromSeconds(2f
+        var duration = TimeSpan.FromSeconds(SurgeryConstants.CauteryCloseBaseDurationSeconds
             * GetSurfaceSpeedModifier(patient)
             * GetDrapeSpeedModifier(patient)
             * GetToolTierModifier(tool));
@@ -354,23 +367,20 @@ public sealed partial class SurgerySystem : SharedSurgerySystem
         // Apply side effects
         ApplyStepEffects(patient, step);
 
-        // Popup
-        if (!string.IsNullOrEmpty(step.Popup) && args.User is { } user)
-            _popup.PopupEntity(Loc.GetString(step.Popup, ("user", user), ("target", patient)), patient);
-
-        // Trigger effect if this step has one
-        if (step.Effect != null)
-            HandleEffect(args.User, patient, step.Effect);
+        var suppressStepPopup = false;
+        var repeatable = step.GetRepeatable();
+        var effect = step.GetEffect();
+        var popup = step.GetPopup();
 
         // Advance step (unless repeatable).
         // Repeatable steps with effects (like organ manipulation) need manual re-use,
         // so only effect-less repeatable steps auto-repeat below.
-        if (!step.Repeatable)
+        if (!repeatable)
         {
             active.CurrentStep++;
             Dirty(patient, active);
         }
-        else if (step.Effect == null)
+        else if (effect == null)
         {
             var damageAfter = _damageable.GetTotalDamage((patient, null));
             var healedSomething = damageAfter < damageBefore;
@@ -379,8 +389,20 @@ public sealed partial class SurgerySystem : SharedSurgerySystem
             args.Repeat = healedSomething && StepCanStillHeal(patient, step);
 
             if (!args.Repeat)
+            {
+                // Swap the step popup for the completion popup so we don't double up.
+                suppressStepPopup = true;
                 _popup.PopupEntity(Loc.GetString("surgery-step-repeat-done"), patient);
+            }
         }
+
+        // Step popup (skipped on the terminal iteration of a repeatable step).
+        if (!suppressStepPopup && !string.IsNullOrEmpty(popup) && args.User is { } user)
+            _popup.PopupEntity(Loc.GetString(popup, ("user", user), ("target", patient)), patient);
+
+        // Trigger effect if this step has one
+        if (effect != null)
+            HandleEffect(args.User, patient, effect);
 
         // Procedure steps exhausted, wait for cautery to close
         if (active.CurrentStep >= proto.Steps.Count)
@@ -402,15 +424,12 @@ public sealed partial class SurgerySystem : SharedSurgerySystem
     /// </summary>
     public float GetToolTierModifier(EntityUid tool)
     {
-        if (_tags.HasTag(tool, TierExperimentalTag))
-            return 0.7f;
+        foreach (var (tag, modifier) in ToolTierModifiers)
+        {
+            if (_tags.HasTag(tool, tag))
+                return modifier;
+        }
 
-        if (_tags.HasTag(tool, TierAdvancedTag))
-            return 0.8f;
-
-        if (_tags.HasTag(tool, TierStandardTag))
-            return 1.0f;
-
-        return 1.5f; // no tier tag = improvised
+        return SurgeryConstants.ToolTierImprovisedModifier;
     }
 }

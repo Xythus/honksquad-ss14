@@ -20,10 +20,14 @@ namespace Content.Shared.Construction.Steps
 
         public override ConstructionGuideEntry GenerateGuideEntry()
         {
+            //HONK START - upstream pre-resolved `var stepName = Loc.GetString(Name)` here; removed for the double-lookup fix below
+            //HONK END
             return new ConstructionGuideEntry
             {
                 Localization = "construction-presenter-arbitrary-step",
+                //HONK START - locale double-lookup fix: presenter already localizes, don't pre-resolve
                 Arguments = new (string, object)[]{("name", Name.ToString())},
+                //HONK END
                 Icon = Icon,
             };
         }
