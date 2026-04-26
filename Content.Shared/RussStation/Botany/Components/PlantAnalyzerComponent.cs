@@ -45,5 +45,5 @@ public sealed partial class PlantAnalyzerComponent : Component
     /// Maximum range in tiles for continuous updates. Null means infinite range.
     /// </summary>
     [DataField]
-    public float? MaxScanRange = 2.5f;
+    public float? MaxScanRange = PlantAnalyzerConstants.MaxScanRange;
 }

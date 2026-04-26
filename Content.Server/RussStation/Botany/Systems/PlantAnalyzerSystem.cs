@@ -14,10 +14,12 @@ using Content.Shared.Item.ItemToggle.Components;
 using Content.Shared.RussStation.Botany;
 using Content.Shared.RussStation.Botany.Components;
 using Content.Shared.Slippery;
+using Content.Shared.Sprite;
 using Robust.Server.GameObjects;
 using Robust.Shared.Audio.Systems;
 using Robust.Shared.Containers;
 using Robust.Shared.Prototypes;
+using Robust.Shared.Random;
 using Robust.Shared.Timing;
 
 namespace Content.Server.RussStation.Botany.Systems;
@@ -33,15 +35,27 @@ public sealed class PlantAnalyzerSystem : EntitySystem
     [Dependency] private readonly IGameTiming _timing = default!;
     [Dependency] private readonly ItemToggleSystem _toggle = default!;
     [Dependency] private readonly TransformSystem _transformSystem = default!;
+    [Dependency] private readonly IRobustRandom _random = default!;
 
     public override void Initialize()
     {
         base.Initialize();
+        SubscribeLocalEvent<PlantAnalyzerComponent, MapInitEvent>(OnMapInit);
         SubscribeLocalEvent<PlantAnalyzerComponent, AfterInteractEvent>(OnAfterInteract);
         SubscribeLocalEvent<PlantAnalyzerComponent, PlantAnalyzerDoAfterEvent>(OnDoAfter);
         SubscribeLocalEvent<PlantAnalyzerComponent, EntGotInsertedIntoContainerMessage>(OnInsertedIntoContainer);
         SubscribeLocalEvent<PlantAnalyzerComponent, ItemToggledEvent>(OnToggled);
         SubscribeLocalEvent<PlantAnalyzerComponent, DroppedEvent>(OnDropped);
+    }
+
+    private void OnMapInit(EntityUid uid, PlantAnalyzerComponent component, MapInitEvent args)
+    {
+        if (!_random.Prob(0.1f))
+            return;
+
+        var sprite = EnsureComp<RandomSpriteComponent>(uid);
+        sprite.Selected["animation"] = ("analyzer-snake", null);
+        Dirty(uid, sprite);
     }
 
     public override void Update(float frameTime)

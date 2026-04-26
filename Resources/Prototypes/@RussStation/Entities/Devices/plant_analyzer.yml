@@ -13,6 +13,7 @@
     - state: icon
     - state: analyzer
       shader: unshaded
+      map: ["animation"]
   - type: Item
     heldPrefix: analyzer
     storedRotation: -90
