@@ -134,7 +134,7 @@ public sealed partial class PlantAnalyzerWindow : FancyWindow
         {
             Text = text,
             StyleClasses = { "LabelSubText" },
-            Margin = new Thickness(0, 4, 0, 0),
+            Margin = new Thickness(BotanyClientConstants.PlantAnalyzerUISectionHeaderMarginLeft, BotanyClientConstants.PlantAnalyzerUISectionHeaderMarginTop, BotanyClientConstants.PlantAnalyzerUISectionHeaderMarginRight, BotanyClientConstants.PlantAnalyzerUISectionHeaderMarginBottom),
         };
     }
 

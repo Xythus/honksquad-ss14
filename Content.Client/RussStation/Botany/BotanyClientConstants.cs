@@ -39,4 +39,9 @@ public static class BotanyClientConstants
     public const int PlantAnalyzerUIStatsValueLabelMarginTop = 0;
     public const int PlantAnalyzerUIStatsValueLabelMarginRight = 8;
     public const int PlantAnalyzerUIStatsValueLabelMarginBottom = 0;
+
+    public const int PlantAnalyzerUISectionHeaderMarginLeft = 0;
+    public const int PlantAnalyzerUISectionHeaderMarginTop = 4;
+    public const int PlantAnalyzerUISectionHeaderMarginRight = 0;
+    public const int PlantAnalyzerUISectionHeaderMarginBottom = 0;
 }
