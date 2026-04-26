@@ -64,6 +64,9 @@
         - id: HydroponicsToolHatchet
         - id: ClothingOuterApronBotanist
         - id: ClothingHandsGlovesLeather
+# HONK START
+        - id: HandheldPlantAnalyzer
+# HONK END
         - id: ChemistryBottleEZNutrient
           amount: 2
 

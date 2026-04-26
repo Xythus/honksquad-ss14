@@ -292,6 +292,9 @@
       - Syringe
       - CigPack
       - Dropper
+# HONK START
+      - DiscretePlantAnalyzer
+# HONK END
       components:
       - Seed
       - Smokable

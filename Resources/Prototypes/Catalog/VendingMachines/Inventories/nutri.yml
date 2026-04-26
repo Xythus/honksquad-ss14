@@ -19,8 +19,9 @@
     BoxAgrichem: 1
     MortarAndPestle: 1
     HandheldJuicer: 1
-    #TO DO:
-    #plant analyzer
+# HONK START
+    HandheldPlantAnalyzer: 4
+# HONK END
   contrabandInventory:
     ChemistryBottleUnstableMutagen: 1
     Joint: 1
