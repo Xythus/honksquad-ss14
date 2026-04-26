@@ -30,8 +30,13 @@ public static class BotanyClientConstants
 
     public const float SeedTakeButtonMinWidth = 65f;
 
-    public const int TraitsNoneLabelMarginLeft = 0;
-    public const int TraitsNoneLabelMarginTop = 8;
-    public const int TraitsNoneLabelMarginRight = 0;
-    public const int TraitsNoneLabelMarginBottom = 0;
+    public const int PlantAnalyzerUITraitsNoneLabelMarginLeft = 0;
+    public const int PlantAnalyzerUITraitsNoneLabelMarginTop = 8;
+    public const int PlantAnalyzerUITraitsNoneLabelMarginRight = 0;
+    public const int PlantAnalyzerUITraitsNoneLabelMarginBottom = 0;
+
+    public const int PlantAnalyzerUIStatsValueLabelMarginLeft = 0;
+    public const int PlantAnalyzerUIStatsValueLabelMarginTop = 0;
+    public const int PlantAnalyzerUIStatsValueLabelMarginRight = 8;
+    public const int PlantAnalyzerUIStatsValueLabelMarginBottom = 0;
 }

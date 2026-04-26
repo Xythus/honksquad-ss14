@@ -74,7 +74,7 @@ public sealed partial class PlantAnalyzerWindow : FancyWindow
                 Text = Loc.GetString("plant-analyzer-traits-none"),
                 StyleClasses = { "LabelSubText" },
                 HorizontalAlignment = HAlignment.Center,
-                Margin = new Thickness(BotanyClientConstants.TraitsNoneLabelMarginLeft, BotanyClientConstants.TraitsNoneLabelMarginTop, BotanyClientConstants.TraitsNoneLabelMarginRight, BotanyClientConstants.TraitsNoneLabelMarginBottom),
+                Margin = new Thickness(BotanyClientConstants.PlantAnalyzerUITraitsNoneLabelMarginLeft, BotanyClientConstants.PlantAnalyzerUITraitsNoneLabelMarginTop, BotanyClientConstants.PlantAnalyzerUITraitsNoneLabelMarginRight, BotanyClientConstants.PlantAnalyzerUITraitsNoneLabelMarginBottom),
             });
             return;
         }
@@ -123,7 +123,7 @@ public sealed partial class PlantAnalyzerWindow : FancyWindow
                 Text = Loc.GetString("plant-analyzer-chemicals-none"),
                 StyleClasses = { "LabelSubText" },
                 HorizontalAlignment = HAlignment.Center,
-                Margin = new Thickness(BotanyClientConstants.TraitsNoneLabelMarginLeft, BotanyClientConstants.TraitsNoneLabelMarginTop, BotanyClientConstants.TraitsNoneLabelMarginRight, BotanyClientConstants.TraitsNoneLabelMarginBottom),
+                Margin = new Thickness(BotanyClientConstants.PlantAnalyzerUITraitsNoneLabelMarginLeft, BotanyClientConstants.PlantAnalyzerUITraitsNoneLabelMarginTop, BotanyClientConstants.PlantAnalyzerUITraitsNoneLabelMarginRight, BotanyClientConstants.PlantAnalyzerUITraitsNoneLabelMarginBottom),
             });
         }
     }
@@ -163,7 +163,7 @@ public sealed partial class PlantAnalyzerWindow : FancyWindow
         {
             Text = value,
             HorizontalAlignment = HAlignment.Right,
-            Margin = new Thickness(0, 0, 8, 0),
+            Margin = new Thickness(BotanyClientConstants.PlantAnalyzerUIStatsValueLabelMarginLeft, BotanyClientConstants.PlantAnalyzerUIStatsValueLabelMarginTop, BotanyClientConstants.PlantAnalyzerUIStatsValueLabelMarginRight, BotanyClientConstants.PlantAnalyzerUIStatsValueLabelMarginBottom),
         });
     }
 }
