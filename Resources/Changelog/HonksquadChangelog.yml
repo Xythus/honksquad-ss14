@@ -324,8 +324,7 @@ Entries:
   url: https://github.com/HellWatcher/honksquad-ss14/pull/394
 - author: HellWatcher
   changes:
-  - message: 'Added Prosopagnosia quirk. Players with this trait can''t recognize faces and see other humanoids'
-      as generic descriptions like "middle-aged woman".
+  - message: 'Added Prosopagnosia quirk. Players with this trait can''t recognize faces and see other humanoids as generic descriptions like "middle-aged woman".'
     type: Add
   time: '2026-04-10T09:37:28.0000000+00:00'
   url: https://github.com/HellWatcher/honksquad-ss14/pull/393
