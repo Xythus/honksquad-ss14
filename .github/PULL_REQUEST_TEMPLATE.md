@@ -21,8 +21,6 @@
 ## Changelog
 
 <!-- Delete this block if the change has no player-facing effect (refactors, tests, CI, etc.).
-     One entry per visible change. Keep each message under 80 characters: plain sentence,
-     player-facing, no fluff. Example: "Surgery now requires sterile drapes."
      Entries are harvested weekly and added to the in-game changelog. -->
 
 :cl:
@@ -30,4 +28,3 @@
 - tweak: 
 - fix: 
 - remove: 
-/:cl:
