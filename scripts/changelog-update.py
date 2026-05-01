@@ -59,23 +59,11 @@ def yaml_message(text):
     return text
 
 
-def format_entry(entry, wrap=110):
+def format_entry(entry):
     lines = [f"- author: {entry['author']}", "  changes:"]
     for ch in entry["changes"]:
         msg_yaml = yaml_message(ch["message"])
-        prefix = f"  - message: {msg_yaml}"
-        if len(prefix) > wrap:
-            words = msg_yaml.split()
-            line1, cur = [], "  - message: "
-            for w in words:
-                if len(cur + w) > wrap and line1:
-                    break
-                line1.append(w)
-                cur += w + " "
-            lines.append(f"  - message: {' '.join(line1)}")
-            lines.append(f"      {' '.join(words[len(line1):])}")
-        else:
-            lines.append(prefix)
+        lines.append(f"  - message: {msg_yaml}")
         lines.append(f"    type: {ch['type']}")
     lines.append(f"  time: '{entry['time']}'")
     lines.append(f"  url: {entry['url']}")
