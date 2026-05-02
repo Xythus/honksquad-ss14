@@ -17,7 +17,7 @@ public sealed class PlantAnalyzerScannedUserMessage : BoundUserInterfaceState
 [Serializable, NetSerializable]
 public struct PlantAnalyzerUiState
 {
-    public string SeedName;
+    public string SeedName = "";
 
     // Basic stats
     public float Lifespan;
@@ -26,7 +26,7 @@ public struct PlantAnalyzerUiState
     public int Yield;
     public float Potency;
     public int GrowthStages;
-    public string HarvestRepeat;
+    public string HarvestRepeat = "";
     public float Endurance;
 
     // Advanced stats
@@ -42,9 +42,14 @@ public struct PlantAnalyzerUiState
     public float PestTolerance;
     public float WeedTolerance;
 
+    // True when the analyzer is actively tracking the target; false when paused/stopped.
+    public bool ScanMode;
+
     // Pre-localized collections — only present entries included
-    public List<string> Traits;
-    public Dictionary<string, FixedPoint2> Chemicals;
-    public Dictionary<string, float> ConsumeGases;
-    public Dictionary<string, float> ExudeGases;
+    public List<string> Traits = new();
+    public Dictionary<string, FixedPoint2> Chemicals = new();
+    public Dictionary<string, float> ConsumeGases = new();
+    public Dictionary<string, float> ExudeGases = new();
+
+    public PlantAnalyzerUiState() { }
 }

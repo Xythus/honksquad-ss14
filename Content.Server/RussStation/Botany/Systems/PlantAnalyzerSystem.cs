@@ -11,6 +11,7 @@ using Content.Shared.Interaction;
 using Content.Shared.Interaction.Events;
 using Content.Shared.Item.ItemToggle;
 using Content.Shared.Item.ItemToggle.Components;
+using Content.Shared.Popups;
 using Content.Shared.RussStation.Botany;
 using Content.Shared.RussStation.Botany.Components;
 using Content.Shared.Slippery;
@@ -36,6 +37,7 @@ public sealed class PlantAnalyzerSystem : EntitySystem
     [Dependency] private readonly ItemToggleSystem _toggle = default!;
     [Dependency] private readonly TransformSystem _transformSystem = default!;
     [Dependency] private readonly IRobustRandom _random = default!;
+    [Dependency] private readonly SharedPopupSystem _popupSystem = default!;
 
     public override void Initialize()
     {
@@ -70,6 +72,12 @@ public sealed class PlantAnalyzerSystem : EntitySystem
                 continue;
 
             if (Deleted(target))
+            {
+                StopAnalyzing((uid, comp), target);
+                continue;
+            }
+
+            if (!TryGetSeed(target, out _))
             {
                 StopAnalyzing((uid, comp), target);
                 continue;
@@ -113,7 +121,10 @@ public sealed class PlantAnalyzerSystem : EntitySystem
             return;
 
         if (!TryGetSeed(args.Target.Value, out _))
+        {
+            _popupSystem.PopupEntity(Loc.GetString("plant-analyzer-no-plant"), args.User, args.User);
             return;
+        }
 
         _audio.PlayPvs(uid.Comp.ScanningEndSound, uid);
 
@@ -152,6 +163,7 @@ public sealed class PlantAnalyzerSystem : EntitySystem
     {
         analyzer.Comp.ScannedEntity = null;
         _toggle.TryDeactivate(analyzer.Owner);
+        SendUiUpdate(analyzer, target, scanMode: false);
     }
 
     private void PauseAnalyzing(Entity<PlantAnalyzerComponent> analyzer, EntityUid target)
@@ -159,10 +171,11 @@ public sealed class PlantAnalyzerSystem : EntitySystem
         if (!analyzer.Comp.IsAnalyzerActive)
             return;
 
+        SendUiUpdate(analyzer, target, scanMode: false);
         analyzer.Comp.IsAnalyzerActive = false;
     }
 
-    private void SendUiUpdate(EntityUid analyzer, EntityUid target)
+    private void SendUiUpdate(EntityUid analyzer, EntityUid target, bool scanMode = true)
     {
         if (!_uiSystem.HasUi(analyzer, PlantAnalyzerUiKey.Key))
             return;
@@ -171,6 +184,7 @@ public sealed class PlantAnalyzerSystem : EntitySystem
             return;
 
         var state = BuildState(target, seed!);
+        state.ScanMode = scanMode;
         _uiSystem.SetUiState(analyzer, PlantAnalyzerUiKey.Key, new PlantAnalyzerScannedUserMessage(state));
     }
 
@@ -219,7 +233,10 @@ public sealed class PlantAnalyzerSystem : EntitySystem
             amount = FixedPoint2.Clamp(amount, q.Min, q.Max);
 
             if (!_prototypeManager.TryIndex<ReagentPrototype>(reagentId, out var reagent))
+            {
+                Log.Warning($"PlantAnalyzer: reagent '{reagentId}' not found for seed '{seed.Name}'.");
                 continue;
+            }
 
             chemicals[reagent.LocalizedName] = amount;
         }
@@ -227,13 +244,23 @@ public sealed class PlantAnalyzerSystem : EntitySystem
         var consumeGases = BuildGasDict(seed.ConsumeGasses);
         var exudeGases = BuildGasDict(seed.ExudeGasses);
 
-        var harvestRepeatKey = seed.HarvestRepeat switch
+        string harvestRepeatKey;
+        switch (seed.HarvestRepeat)
         {
-            HarvestType.NoRepeat => "plant-analyzer-harvest-no-repeat",
-            HarvestType.Repeat => "plant-analyzer-harvest-repeat",
-            HarvestType.SelfHarvest => "plant-analyzer-harvest-self-harvest",
-            _ => "plant-analyzer-harvest-no-repeat",
-        };
+            case HarvestType.NoRepeat:
+                harvestRepeatKey = "plant-analyzer-harvest-no-repeat";
+                break;
+            case HarvestType.Repeat:
+                harvestRepeatKey = "plant-analyzer-harvest-repeat";
+                break;
+            case HarvestType.SelfHarvest:
+                harvestRepeatKey = "plant-analyzer-harvest-self-harvest";
+                break;
+            default:
+                Log.Warning($"PlantAnalyzer: unrecognized HarvestType {seed.HarvestRepeat}.");
+                harvestRepeatKey = "plant-analyzer-harvest-no-repeat";
+                break;
+        }
 
         return new PlantAnalyzerUiState
         {
@@ -270,6 +297,11 @@ public sealed class PlantAnalyzerSystem : EntitySystem
         foreach (var (gas, rate) in gases)
         {
             var proto = _atmosphere.GetGas(gas);
+            if (proto == null)
+            {
+                Log.Warning($"PlantAnalyzer: unknown gas ID {(int)gas}, skipping.");
+                continue;
+            }
             result[Loc.GetString(proto.Name)] = rate;
         }
         return result;

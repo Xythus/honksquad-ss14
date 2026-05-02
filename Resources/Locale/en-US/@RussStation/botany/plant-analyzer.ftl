@@ -10,6 +10,7 @@ plant-analyzer-tab-chemicals = Chemicals
 # Empty state messages
 plant-analyzer-traits-none = No special traits detected.
 plant-analyzer-chemicals-none = No chemicals or gases detected.
+plant-analyzer-no-plant = No plant detected.
 
 # Section headers
 plant-analyzer-section-basic = Basic Stats
